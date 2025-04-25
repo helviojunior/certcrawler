@@ -16,21 +16,21 @@ _________                __   _________                      .__
 /    \  \/_/ __ \_  __ \   __\/    \  \/\_  __ \__  \\ \/ \/ /  | _/ __ \_  __ \
 \     \___\  ___/|  | \/|  |  \     \____|  | \// __ \\     /|  |_\  ___/|  | \/
  \______  /\___  >__|   |__|   \______  /|__|  (____  /\/\_/ |____/\_____>__|
-        \/     \/                     \/            \/           Ver: dev-dev
+        \/     \/                     \/            \/           
 
 Usage:
   certcrawler [command]
 
 Examples:
 
-   - certcrawler crawler file -d sec4us.com.br -L /tmp/endpoint.txt -o certcrawler.txt
-   - certcrawler crawler file -d /tmp/hostnames.txt -L /tmp/endpoint.txt --write-db
+   - certcrawler crawler file -d sec4us.com.br -f /tmp/endpoint.txt -o certcrawler.txt
+   - certcrawler crawler file -d /tmp/hostnames.txt -f /tmp/endpoint.txt --write-db
 
-   - certcrawler crawler nmap -d sec4us.com.br -L /tmp/nmap.xml -o certcrawler.txt
-   - certcrawler crawler nmap -d /tmp/hostnames.txt -L /tmp/nmap.xml --write-db
+   - certcrawler crawler nmap -d sec4us.com.br -f /tmp/nmap.xml -o certcrawler.txt
+   - certcrawler crawler nmap -d /tmp/hostnames.txt -f /tmp/nmap.xml --write-db
 
 Available Commands:
-  file        Perform SSL/TLS certificate crawler
+  crawler     Perform SSL/TLS certificate crawler
   help        Help about any command
   version     Get the certcrawler version
 
@@ -51,9 +51,6 @@ Flags:
       --write-jsonl-file string   The file to write JSON lines to (default "certcrawler.jsonl")
       --write-none                Use an empty writer to silence warnings
   -o, --write-text-file string    The file to write Text lines to
-
-Additional help topics:
-  certcrawler crawler Perform SSL/TLS certificate crawler
 
 Use "certcrawler [command] --help" for more information about a command.
 
