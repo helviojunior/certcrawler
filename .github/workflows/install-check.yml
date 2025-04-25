@@ -48,13 +48,22 @@ jobs:
 
       - name: Create a fake wordlist
         run: |
-          cat << EOF > /tmp/wl.txt
-          www
-          wiki
+          cat << EOF > /tmp/enpoint.txt
+          40.84.222.149
+          185.199.110.153:443
+          EOF
+
+          cat << EOF > /tmp/hosts.txt
+          sec4us.com.br
+          wiki.sec4us.com.br
+          github.io
           EOF
 
       - name: Verify Installation
         run: |
           certcrawler version
-          certcrawler brute -d sec4us.com.br -w /tmp/wl.txt -o /tmp/result.txt
+          certcrawler crawler -w /tmp/enpoint.txt -L /tmp/hosts.txt -o /tmp/ssl.txt
           
+      - name: Get result
+        run: |
+          cat /tmp/ssl.txt
