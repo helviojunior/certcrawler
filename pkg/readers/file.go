@@ -4,6 +4,7 @@ import (
 	"bufio"
 	//"fmt"
 	"net/netip"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -105,7 +106,16 @@ func (fr *FileReader) readFileList(fileName string, outList *[]string) error {
 			continue
 		}
 
-		*outList = append(*outList, strings.ToLower(candidate))
+		candidate = strings.Trim(strings.ToLower(candidate), ". ")
+
+        //Check if hostname is valid
+        _, err := url.Parse("https://" + candidate)
+        if err != nil {
+        	log.Debug("Invalid hostname", "err", err)
+        	continue
+        }
+    
+		*outList = append(*outList, candidate)
 	}
 
 	return scanner.Err()

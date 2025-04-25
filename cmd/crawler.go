@@ -2,41 +2,43 @@ package cmd
 
 import (
     "errors"
-    "log/slog"
     "os"
-    //"fmt"
-    "net/netip"
+    "net/url"
+    "log/slog"
 
     "github.com/helviojunior/certcrawler/internal/ascii"
     "github.com/helviojunior/certcrawler/internal/tools"
     "github.com/helviojunior/certcrawler/pkg/log"
     "github.com/helviojunior/certcrawler/pkg/runner"
-    //"github.com/helviojunior/certcrawler/pkg/database"
-    "github.com/helviojunior/certcrawler/pkg/writers"
     "github.com/helviojunior/certcrawler/pkg/readers"
+    "github.com/helviojunior/certcrawler/pkg/writers"
+    resolver "github.com/helviojunior/gopathresolver"
     "github.com/spf13/cobra"
 )
 
+
+
 var crawlerRunner *runner.Runner
-
 var crawlerWriters = []writers.Writer{}
-var bruteCmd = &cobra.Command{
+var crawlerCmd = &cobra.Command{
     Use:   "crawler",
-    Short: "Perform brute-force enumeration",
+    Short: "Perform SSL/TLS certificate crawler",
     Long: ascii.LogoHelp(ascii.Markdown(`
-# brute
+# crawler
 
-Perform brute-force enumeration.
+Perform SSL/TLS certificate crawler
 
-By default, certcrawler will only show information regarding the brute-force process. 
+By default, certcrawler will only show information regarding the crawling process. 
 However, that is only half the fun! You can add multiple _writers_ that will 
 collect information such as response codes, content, and more. You can specify 
 multiple writers using the _--writer-*_ flags (see --help).
 `)),
     Example: `
-   - certcrawler brute -d helviojunior.com.br -w /tmp/wordlist.txt -o certcrawler.txt
-   - certcrawler brute -d helviojunior.com.br -w /tmp/wordlist.txt --write-jsonl
-   - certcrawler brute -L domains.txt -w /tmp/wordlist.txt --write-db`,
+   - certcrawler crawler file -d sec4us.com.br -f /tmp/endpoint.txt -o certcrawler.txt
+   - certcrawler crawler file -d /tmp/hostnames.txt -f /tmp/endpoint.txt --write-db
+
+   - certcrawler crawler nmap -d sec4us.com.br -f /tmp/nmap.xml -o certcrawler.txt
+   - certcrawler crawler nmap -d /tmp/hostnames.txt -f /tmp/nmap.xml --write-db`,
     PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
         var err error
 
@@ -98,15 +100,6 @@ multiple writers using the _--writer-*_ flags (see --help).
             crawlerWriters = append(crawlerWriters, w)
         }
 
-        /*
-        if opts.Writer.ELastic {
-            w, err := writers.NewElasticWriter(opts.Writer.ELasticURI)
-            if err != nil {
-                return err
-            }
-            crawlerWriters = append(crawlerWriters, w)
-        }*/
-
         if opts.Writer.None {
             w, err := writers.NewNoneWriter()
             if err != nil {
@@ -122,99 +115,90 @@ multiple writers using the _--writer-*_ flags (see --help).
         return nil
     },
     PreRunE: func(cmd *cobra.Command, args []string) error {
-        if opts.HostName == "" && fileOptions.HostFile == "" {
+        if opts.HostName == "" {
             return errors.New("a Hostname or Hostname list file must be specified")
         }
 
-        if fileOptions.HostFile != "" {
-            if !tools.FileExists(fileOptions.HostFile) {
-                return errors.New("Hostname list file is not readable")
+        fp, err := resolver.ResolveFullPath(opts.HostName)
+        if err == nil {
+            if tools.FileExists(opts.HostName) {
+                fileOptions.HostFile = fp
+                opts.HostName = ""
             }
         }
 
-        if fileOptions.AddrFile == "" {
-            return errors.New("an address list file must be specified")
+        //Check if hostname is valid
+        if opts.HostName != "" {
+            _, err := url.Parse("https://" + opts.HostName)
+            if err != nil {
+                return errors.New("Invalid hostname: " + err.Error())
+            }
         }
 
-        if !tools.FileExists(fileOptions.AddrFile) {
-            return errors.New("the address list file is not readable")
-        }
-
-        return nil
-    },
-    Run: func(cmd *cobra.Command, args []string) {
-
-        log.Debug("Starting certificate crawling")
-
-        addrList := []netip.AddrPort{}
-        hostnameList := []string{}
         reader := readers.NewFileReader(fileOptions)
-        total := 0
 
         if fileOptions.HostFile != "" {
             log.Debugf("Reading Hostname list file: %s", fileOptions.HostFile)
-            if err := reader.ReadHostList(&hostnameList); err != nil {
+            if err := reader.ReadHostList(&opts.HostnameList); err != nil {
                 log.Error("error in reader.Read", "err", err)
-                os.Exit(2)
+                return err
             }
         }else{
-            hostnameList = append(hostnameList, opts.HostName)
-        }
-        log.Debugf("Loaded %s hostname(s)", tools.FormatInt(len(hostnameList)))
-
-        log.Debugf("Reading address list file: %s", fileOptions.HostFile)
-        if err := reader.ReadAddrList(&addrList); err != nil {
-            log.Error("error in reader.Read", "err", err)
-            os.Exit(2)
-        }
-        total = len(addrList) * len(hostnameList)
-
-        if len(hostnameList) == 0 {
-            log.Error("Hostname list is empty")
-            os.Exit(2)
+            opts.HostnameList = append(opts.HostnameList, opts.HostName)
         }
 
-        if len(addrList) == 0 {
-            log.Error("Address list is empty")
-            os.Exit(2)
+        if len(opts.HostnameList) == 0 {
+            return errors.New("Hostname list is empty")
         }
 
-        log.Infof("Enumerating %s hosts", tools.FormatInt(total))
+        log.Debugf("Loaded %s hostname(s)", tools.FormatInt(len(opts.HostnameList)))
 
-        // An slog-capable logger to use with drivers and runners
-        logger := slog.New(log.Logger)
-        // Get the runner up. Basically, all of the subcommands will use this.
-        crawlerRunner, err := runner.NewRunner(logger, *opts, crawlerWriters, hostnameList)
-        if err != nil {
-            log.Error("error creating new runner", "err", err)
-            os.Exit(2)
-        }
-
-        go func() {
-            defer close(crawlerRunner.Targets)
-
-            ascii.HideCursor()
-
-            for _, a := range addrList {
-
-                crawlerRunner.Targets <- a
-
-            }
-        
-        
-        }()
-
-        crawlerRunner.Run(total)
-        crawlerRunner.Close()
-
+        return nil
     },
+    
+}
+
+func internalCrawlerRun(cmd *cobra.Command, args []string) {
+
+    if len(opts.AddrressList) == 0 {
+        log.Error("Address list is empty")
+        os.Exit(2)
+    }
+
+    total := len(opts.AddrressList) * len(opts.HostnameList)
+    log.Infof("Enumerating %s hosts", tools.FormatInt(total))
+
+    // An slog-capable logger to use with drivers and runners
+    logger := slog.New(log.Logger)
+    // Get the runner up. Basically, all of the subcommands will use this.
+    crawlerRunner, err := runner.NewRunner(logger, *opts, crawlerWriters)
+    if err != nil {
+        log.Error("error creating new runner", "err", err)
+        os.Exit(2)
+    }
+
+    go func() {
+        defer close(crawlerRunner.Targets)
+
+        ascii.HideCursor()
+
+        for _, a := range opts.AddrressList {
+
+            crawlerRunner.Targets <- a
+
+        }
+    
+    
+    }()
+
+    crawlerRunner.Run(total)
+    crawlerRunner.Close()
+
 }
 
 func init() {
-    rootCmd.AddCommand(bruteCmd)
+    rootCmd.AddCommand(crawlerCmd)
     
-    bruteCmd.Flags().StringVarP(&opts.HostName, "hostname", "d", "", "Single Domain. (ex: www.sec4us.com.br)")
-    bruteCmd.Flags().StringVarP(&fileOptions.HostFile, "dns-list", "L", "", "File containing a list of hostnames")
-    bruteCmd.Flags().StringVarP(&fileOptions.AddrFile, "addresses", "w", "", "File containing a list of addresses")
+    crawlerCmd.PersistentFlags().StringVarP(&opts.HostName, "hostname", "d", "", "Hostname or Hostname file list")
     
 }

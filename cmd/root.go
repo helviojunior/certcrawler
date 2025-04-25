@@ -29,24 +29,14 @@ var (
 
 var rootCmd = &cobra.Command{
 	Use:   "certcrawler",
-	Short: "certcrawler is a modular DNS recon tool",
+	Short: "CertCrawler is a modular SSL/TLS certificate crawler",
 	Long:  ascii.Logo(),
 	Example: `
-   - certcrawler recon -d helviojunior.com.br -o certcrawler.txt
-   - certcrawler recon -d helviojunior.com.br --write-jsonl
-   - certcrawler recon -L domains.txt --write-db   
+   - certcrawler crawler file -d sec4us.com.br -f /tmp/endpoint.txt -o certcrawler.txt
+   - certcrawler crawler file -d /tmp/hostnames.txt -f /tmp/endpoint.txt --write-db
 
-   - certcrawler brute -d helviojunior.com.br -w /tmp/wordlist.txt -o certcrawler.txt
-   - certcrawler brute -d helviojunior.com.br -w /tmp/wordlist.txt --write-jsonl
-   - certcrawler brute -L domains.txt -w /tmp/wordlist.txt --write-db   
-
-   - certcrawler resolve bloodhound -L /tmp/bloodhound_computers.json -o certcrawler.txt
-   - certcrawler resolve bloodhound -L /tmp/bloodhound_files.zip --write-jsonl
-   - certcrawler resolve bloodhound -L /tmp/bloodhound_computers.json --write-db
-
-   - certcrawler resolve file -L /tmp/host_list.txt -o certcrawler.txt
-   - certcrawler resolve file -L /tmp/host_list.txt --write-jsonl
-   - certcrawler resolve file -L /tmp/host_list.txt --write-db`,
+   - certcrawler crawler nmap -d sec4us.com.br -f /tmp/nmap.xml -o certcrawler.txt
+   - certcrawler crawler nmap -d /tmp/hostnames.txt -f /tmp/nmap.xml --write-db`,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 		
 		usr, err := user.Current()
@@ -146,6 +136,7 @@ func Execute() {
 
 	//Time to wait the logger flush
 	time.Sleep(time.Second/4)
+	ascii.ClearLine()
     ascii.ShowCursor()
     fmt.Printf("\n")
 }
@@ -180,9 +171,5 @@ func init() {
     rootCmd.PersistentFlags().BoolVar(&opts.Writer.Jsonl, "write-jsonl", false, "Write results as JSON lines")
     rootCmd.PersistentFlags().StringVar(&opts.Writer.JsonlFile, "write-jsonl-file", "certcrawler.jsonl", "The file to write JSON lines to")
     rootCmd.PersistentFlags().BoolVar(&opts.Writer.None, "write-none", false, "Use an empty writer to silence warnings")
-
-    rootCmd.PersistentFlags().BoolVar(&opts.Writer.ELastic, "write-elastic", false, "Write results to a SQLite database")
-    rootCmd.PersistentFlags().StringVar(&opts.Writer.ELasticURI, "write-elasticsearch-uri", "http://localhost:9200/certcrawler", "The elastic search URI to use. (e.g., http://user:pass@host:9200/index)")
-
     
 }

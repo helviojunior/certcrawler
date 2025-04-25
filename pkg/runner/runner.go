@@ -53,8 +53,6 @@ type Runner struct {
 	// options for the Runner to consider
 	options Options
 
-	HostNames []string
-
 	Timeout time.Duration
 }
 
@@ -62,7 +60,8 @@ type Status struct {
 	Total int
 	Complete int
 	Skiped int
-	Error int
+	ConnectionError int
+	TLSError int
 	Spin string
 	Running bool
 }
@@ -71,9 +70,13 @@ func (st *Status) Print() {
 
 	st.Spin = ascii.GetNextSpinner(st.Spin)
 
-	fmt.Fprintf(os.Stderr, "%s\n %s (%s/%s) failed: %s               \r\033[A", 
+	fmt.Fprintf(os.Stderr, "%s\n %s (%s/%s) conn error: %s, tls error: %s               \r\033[A", 
     	"                                                                        ",
-    	ascii.ColoredSpin(st.Spin), tools.FormatInt(st.Complete), tools.FormatInt(st.Total), tools.FormatInt(st.Error))
+    	ascii.ColoredSpin(st.Spin), 
+    	tools.FormatInt(st.Complete), 
+    	tools.FormatInt(st.Total), 
+    	tools.FormatInt(st.ConnectionError), 
+    	tools.FormatInt(st.TLSError))
 	
 } 
 
@@ -93,7 +96,7 @@ func (st *Status) AddResult(result *models.Host) {
 
 // New gets a new Runner ready for probing.
 // It's up to the caller to call Close() on the runner
-func NewRunner(logger *slog.Logger, opts Options, writers []writers.Writer, hostNames []string) (*Runner, error) {
+func NewRunner(logger *slog.Logger, opts Options, writers []writers.Writer) (*Runner, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	return &Runner{
@@ -104,12 +107,12 @@ func NewRunner(logger *slog.Logger, opts Options, writers []writers.Writer, host
 		log:        logger,
 		writers:    writers,
 		options:    opts,
-		HostNames:  hostNames,
 		Timeout:    2 * time.Second,
 		status:     &Status{
 			Total: 0,
 			Complete: 0,
-			Error: 0,
+			ConnectionError: 0,
+			TLSError: 0,
 			Skiped: 0,
 			Spin: "",
 			Running: true,
@@ -177,6 +180,7 @@ func (run *Runner) Run(total int) Status {
 		go func() {
 			defer wg.Done()
 			tools.RandSleep()
+			hnCount := len(run.options.HostnameList)
 			for run.status.Running {
 				select {
 				case <-run.ctx.Done():
@@ -189,13 +193,13 @@ func (run *Runner) Run(total int) Status {
 
 					if !run.isPortOpen(endpoint) {
 						logger.Debug("tcp port closed")
-						run.status.Complete += (1 * len(run.HostNames))
-						run.status.Error += (1 * len(run.HostNames))
+						run.status.Complete += hnCount
+						run.status.ConnectionError += hnCount
 						continue
 					}
 
 					var host *models.Host
-					for _, h := range run.HostNames {
+					for _, h := range run.options.HostnameList {
 						l2 := run.log.With("Host", endpoint.String(), "host", h)
 
 					    h1, err := run.getCert(h, endpoint)
@@ -203,7 +207,7 @@ func (run *Runner) Run(total int) Status {
 					    run.status.Complete += 1
 					    if err != nil {
 					    	l2.Debug("error getting cert", "err", err)
-					    	run.status.Error += 1
+					    	run.status.TLSError += 1
 					    }else{
 						    if h1 != nil {
 						    	if host == nil {

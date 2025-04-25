@@ -2,6 +2,7 @@ package runner
 
 import (
     "net/url"
+    "net/netip"
 )
 
 // Options are global github.com/helviojunior/certcrawlercertcrawler options
@@ -17,6 +18,9 @@ type Options struct {
     Proxy *url.URL
 
     HostName string
+
+    AddrressList []netip.AddrPort
+    HostnameList []string
 }
 
 // Logging is log related options
@@ -89,5 +93,7 @@ func NewDefaultOptions() *Options {
             LogScanErrors: true,
         },
         HostName: "",
+        AddrressList: []netip.AddrPort{},
+        HostnameList: []string{},
     }
 }
