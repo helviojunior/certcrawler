@@ -63,6 +63,9 @@ func (s *StdoutWriter) Write(host *models.Host) error {
 }
 
 func (s *StdoutWriter) FormatCN(cn string) string {
+	if len(cn) <= 3 {
+		return cn
+	}
     txt := cn
     if strings.ToLower(txt[0:3]) == "cn=" {
         p := strings.Split(txt, ",")
