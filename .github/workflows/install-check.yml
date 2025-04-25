@@ -62,7 +62,7 @@ jobs:
       - name: Verify Installation
         run: |
           certcrawler version
-          certcrawler crawler -w /tmp/enpoint.txt -L /tmp/hosts.txt -o /tmp/ssl.txt
+          certcrawler crawler file -f /tmp/enpoint.txt -d /tmp/hosts.txt -o /tmp/ssl.txt
           
       - name: Get result
         run: |
