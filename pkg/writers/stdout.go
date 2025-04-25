@@ -3,6 +3,7 @@ package writers
 import (
 	//"fmt"
 	//"os"
+    "strings"
 
 	"github.com/helviojunior/certcrawler/pkg/models"
 	logger "github.com/helviojunior/certcrawler/pkg/log"
@@ -44,16 +45,38 @@ func (s *StdoutWriter) Write(host *models.Host) error {
     */
 
     for _, cert := range host.Certificates {
-    	logger.Infof("%s %d:\n       %s", host.Ip, host.Port, cert.Subject)
-    	if len(cert.Names) > 2 {
-            for _, altName := range cert.Names {
-            	logger.Infof("%s %d:\n       %s", host.Ip, host.Port, altName.Name)
+        if !cert.IsCA {
+            subject := s.FormatCN(cert.Subject)
+        	logger.Info("Certificate found", "ip", host.Ip, "port", host.Port, "name", s.FormatCN(cert.Subject))
+        	if len(cert.Names) > 2 {
+                for _, altName := range cert.Names {
+                    n := s.FormatCN(altName.Name)
+                    if altName.Type != "subject" && subject != n {
+                    	logger.Info("Certificate found", "ip", host.Ip, "port", host.Port, "name", n)
+                    }
+                }
             }
         }
     }
 
 	return nil
 }
+
+func (s *StdoutWriter) FormatCN(cn string) string {
+    txt := cn
+    if strings.ToLower(txt[0:3]) == "cn=" {
+        p := strings.Split(txt, ",")
+        if len(p) >= 1 {
+            txt = strings.Replace(strings.Replace(p[0], "CN=", "", -1), "cn=", "", -1)
+        }
+    }
+    if txt == "" {
+        txt = cn
+    }
+    txt = strings.Replace(txt, "\"", "", -1)
+    txt = strings.Replace(txt, "'", "", -1)
+    return txt
+} 
 
 func (s *StdoutWriter) Finish() error {
     return nil

@@ -75,11 +75,20 @@ func (t *TextWriter) formatResult(host *models.Host) string {
 	r := fmt.Sprintf("%s %d:\n", host.Ip, host.Port)
 
     for i, cert := range host.Certificates {
+    	ca := ""
+    	if cert.IsRootCA {
+    		ca = "Root CA"
+    	}else if cert.IsCA {
+    		ca = "Intermediate CA"
+    	}else{
+    		ca = "No"
+    	}
         r += fmt.Sprintf("  |--> Certificate %d:\n", i)
         r += fmt.Sprintf("  |     |--> Subject:    %s\n", cert.Subject)
         r += fmt.Sprintf("  |     |--> Issuer:     %s\n", cert.Issuer)
         r += fmt.Sprintf("  |     |--> NotBefore:  %s\n", cert.NotBefore)
         r += fmt.Sprintf("  |     |--> NotAfter:   %s\n", cert.NotAfter)
+        r += fmt.Sprintf("  |     |--> CA:         %s\n", ca)
         if len(cert.Names) > 2 {
             r += "  |     |--> Alternate Names:\n"
             for _, altName := range cert.Names {
