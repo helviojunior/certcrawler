@@ -21,6 +21,8 @@ type Options struct {
 
     AddrressList []netip.AddrPort
     HostnameList []string
+
+    ForceCheck bool
 }
 
 // Logging is log related options
@@ -92,6 +94,7 @@ func NewDefaultOptions() *Options {
             Debug:         true,
             LogScanErrors: true,
         },
+        ForceCheck: false,
         HostName: "",
         AddrressList: []netip.AddrPort{},
         HostnameList: []string{},

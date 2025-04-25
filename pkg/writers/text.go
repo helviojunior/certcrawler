@@ -101,3 +101,8 @@ func (t *TextWriter) formatResult(host *models.Host) string {
 
 	return r
 }
+
+
+func (t *TextWriter) AddCtrl(*models.TestCtrl) error {
+	return nil
+}

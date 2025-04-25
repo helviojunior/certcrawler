@@ -105,3 +105,7 @@ func csvHeaders() []string {
 
 	return fieldNames
 }
+
+func (cw *CsvWriter) AddCtrl(*models.TestCtrl) error {
+	return nil
+}

@@ -26,6 +26,8 @@ import (
 	"github.com/helviojunior/certcrawler/internal/tools"
 	"github.com/helviojunior/certcrawler/pkg/models"
 	"github.com/helviojunior/certcrawler/pkg/writers"
+	"github.com/helviojunior/certcrawler/pkg/database"
+	"gorm.io/gorm"
 )
 
 // Runner is a runner that probes web targets using a driver
@@ -39,6 +41,9 @@ type Runner struct {
 
 	//Status
 	status *Status
+
+	conn          *gorm.DB
+	mutex         sync.Mutex
 
 	//Context
 	ctx    context.Context
@@ -96,13 +101,20 @@ func (st *Status) AddResult(result *models.Host) {
 
 // New gets a new Runner ready for probing.
 // It's up to the caller to call Close() on the runner
-func NewRunner(logger *slog.Logger, opts Options, writers []writers.Writer) (*Runner, error) {
+func NewRunner(logger *slog.Logger, opts Options, writers []writers.Writer, dbUri string) (*Runner, error) {
 	ctx, cancel := context.WithCancel(context.Background())
+
+	c, err := database.Connection(dbUri, false, false)
+	if err != nil {
+		return nil, err
+	}
 
 	return &Runner{
 		Targets:      make(chan netip.AddrPort),
 		uid: fmt.Sprintf("%d", time.Now().UnixMilli()),
 		ctx:        ctx,
+		conn:       c,
+		mutex:      sync.Mutex{},
 		cancel:     cancel,
 		log:        logger,
 		writers:    writers,
@@ -136,6 +148,41 @@ func ContainsCloudProduct(s string) (bool, string, string) {
 func (run *Runner) runWriters(host *models.Host) error {
 	for _, writer := range run.writers {
 		if err := writer.Write(host); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (run *Runner) mustCheck(serverName string, endpoint netip.AddrPort) bool {
+	if run.options.ForceCheck || run.conn == nil {
+		return true
+	}
+	
+	run.mutex.Lock()
+	defer run.mutex.Unlock()
+
+	response := run.conn.Raw("SELECT count(id) as count from test_control WHERE ip = ? AND port = ? AND fqdn = ?", endpoint.Addr().String(), fmt.Sprintf("%d", endpoint.Port()), serverName)
+    if response != nil {
+        var cnt int
+        _ = response.Row().Scan(&cnt)
+        if cnt > 0 {
+            run.log.Debug("[Host already checked]", "ip", endpoint.Addr().String(), "port", endpoint.Port(), "name", serverName)
+            return false
+        }
+    }
+
+	return true
+}
+
+func (run *Runner) runCtrlWriters(serverName string, endpoint netip.AddrPort) error {
+	for _, writer := range run.writers {
+		if err := writer.AddCtrl(&models.TestCtrl{
+			Ip       :endpoint.Addr().String(),
+			Port     :uint(endpoint.Port()),
+			FQDN     :serverName,
+		}); err != nil {
 			return err
 		}
 	}
@@ -191,10 +238,16 @@ func (run *Runner) Run(total int) Status {
 					}
 					logger := run.log.With("Host", endpoint.String())
 
+					if !run.mustCheck("", endpoint) {
+						run.status.Complete += hnCount
+						continue
+					}
+
 					if !run.isPortOpen(endpoint) {
 						logger.Debug("tcp port closed")
 						run.status.Complete += hnCount
 						run.status.ConnectionError += hnCount
+						run.runCtrlWriters("", endpoint)
 						continue
 					}
 
@@ -202,26 +255,32 @@ func (run *Runner) Run(total int) Status {
 					for _, h := range run.options.HostnameList {
 						l2 := run.log.With("Host", endpoint.String(), "host", h)
 
-					    h1, err := run.getCert(h, endpoint)
-					    
-					    run.status.Complete += 1
-					    if err != nil {
-					    	l2.Debug("error getting cert", "err", err)
-					    	run.status.TLSError += 1
-					    }else{
-						    if h1 != nil {
-						    	if host == nil {
-						    		host = h1
-						    	}else{
-						    		for _, h2 := range h1.Certificates {
-						    			host.AddCertificate(h2)
-						    		}
-						    	}
-						    }
-	    				}
-	    				if host != nil {
-	    					host.AddFQDN(h)
-	    				}
+						if run.mustCheck(h, endpoint) {
+
+							run.runCtrlWriters(h, endpoint)
+	
+						    h1, err := run.getCert(h, endpoint)
+						    
+						    if err != nil {
+						    	l2.Debug("error getting cert", "err", err)
+						    	run.status.TLSError += 1
+						    }else{
+							    if h1 != nil {
+							    	if host == nil {
+							    		host = h1
+							    	}else{
+							    		for _, h2 := range h1.Certificates {
+							    			host.AddCertificate(h2)
+							    		}
+							    	}
+							    }
+		    				}
+		    				if host != nil {
+		    					host.AddFQDN(h)
+		    				}
+		    			}
+
+						run.status.Complete += 1
 					}
 
 					if host != nil {

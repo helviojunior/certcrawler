@@ -21,3 +21,8 @@ func (s *NoneWriter) Write(result *models.Host) error {
 func (s *NoneWriter) Finish() error {
     return nil
 }
+
+
+func (s *NoneWriter) AddCtrl(*models.TestCtrl) error {
+	return nil
+}

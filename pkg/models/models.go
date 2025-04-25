@@ -12,6 +12,29 @@ import (
 	"gorm.io/gorm/clause"
 )
 
+
+type TestCtrl struct {
+	ID       uint `json:"id" gorm:"primarykey"`
+
+	Ip				string      `json:"ip"`
+	Port        	uint        `json:"port"`
+	FQDN        	string      `json:"fqdn"`
+
+	ProbedAt        time.Time `json:"probe_at"`
+}
+
+func (TestCtrl) TableName() string {
+    return "test_control"
+}
+
+/*
+func (TestCtrl) BeforeCreate(tx *gorm.DB) (err error) {
+	tx.Statement.SetColumn("probe_at", time.Now())
+
+	return nil
+}*/
+
+
 // Result is a github.com/helviojunior/certcrawlercertcrawler result
 type Certificate struct {
 	//Parent *Certificate

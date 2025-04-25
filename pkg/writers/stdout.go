@@ -81,3 +81,8 @@ func (s *StdoutWriter) FormatCN(cn string) string {
 func (s *StdoutWriter) Finish() error {
     return nil
 }
+
+
+func (s *StdoutWriter) AddCtrl(*models.TestCtrl) error {
+	return nil
+}

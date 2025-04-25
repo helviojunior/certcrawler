@@ -171,7 +171,7 @@ func internalCrawlerRun(cmd *cobra.Command, args []string) {
     // An slog-capable logger to use with drivers and runners
     logger := slog.New(log.Logger)
     // Get the runner up. Basically, all of the subcommands will use this.
-    crawlerRunner, err := runner.NewRunner(logger, *opts, crawlerWriters)
+    crawlerRunner, err := runner.NewRunner(logger, *opts, crawlerWriters, "sqlite:///" + opts.Writer.UserPath +"/.certcrawler.db")
     if err != nil {
         log.Error("error creating new runner", "err", err)
         os.Exit(2)
@@ -200,5 +200,6 @@ func init() {
     rootCmd.AddCommand(crawlerCmd)
     
     crawlerCmd.PersistentFlags().StringVarP(&opts.HostName, "hostname", "d", "", "Hostname or Hostname file list")
+    crawlerCmd.PersistentFlags().BoolVarP(&opts.ForceCheck, "force", "F", false, "Force to check all hosts again.")
     
 }

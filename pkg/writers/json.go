@@ -50,6 +50,11 @@ func (jw *JsonWriter) Write(result *models.Host) error {
 }
 
 
-func (jw *JsonWriter)Finish() error {
+func (jw *JsonWriter) Finish() error {
     return nil
+}
+
+
+func (jw *JsonWriter)AddCtrl(*models.TestCtrl) error {
+	return nil
 }

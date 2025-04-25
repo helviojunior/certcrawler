@@ -75,6 +75,7 @@ func Connection(uri string, shouldExist, debug bool) (*gorm.DB, error) {
 		&models.CertNames{},
 		&models.Host{},
 		&models.FQDN{},
+		&models.TestCtrl{},
 	); err != nil {
 		return nil, err
 	}
