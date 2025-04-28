@@ -346,10 +346,11 @@ func (run *Runner) getCert(serverName string, endpoint netip.AddrPort) (*models.
     		Type 	: "subject",
     		Name    : cert.Subject.String(),
     	})
+    	/*
     	nc.Names = append(nc.Names, &models.CertNames{
     		Type 	: "subject",
     		Name    : cert.Issuer.String(),
-    	})
+    	})*/
 
         if len(cert.DNSNames) > 0 {
         	for _, n := range cert.DNSNames {
