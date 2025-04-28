@@ -12,7 +12,7 @@ import (
 	"fmt"
 	"sync"
 	"time"
-	"strings"
+	//"strings"
 	//"math/rand/v2"
 	"os/signal"
     "syscall"
@@ -24,6 +24,7 @@ import (
 	//"github.com/helviojunior/certcrawler/internal"
 	"github.com/helviojunior/certcrawler/internal/ascii"
 	"github.com/helviojunior/certcrawler/internal/tools"
+	"github.com/helviojunior/certcrawler/pkg/dns"
 	"github.com/helviojunior/certcrawler/pkg/models"
 	"github.com/helviojunior/certcrawler/pkg/writers"
 	"github.com/helviojunior/certcrawler/pkg/database"
@@ -130,18 +131,6 @@ func NewRunner(logger *slog.Logger, opts Options, writers []writers.Writer, dbUr
 			Running: true,
 		},
 	}, nil
-}
-
-func ContainsCloudProduct(s string) (bool, string, string) {
-    s = strings.Trim(strings.ToLower(s), ". ")
-    for prodName, identifiers := range products {
-    	for _, id := range identifiers {
-	        if strings.Contains(s, strings.ToLower(id)) {
-	            return true, prodName, id
-	        }
-	    }
-    }
-    return false, "", ""
 }
 
 // runWriters takes a result and passes it to writers
@@ -251,6 +240,7 @@ func (run *Runner) Run(total int) Status {
 						continue
 					}
 
+					var err error
 					var host *models.Host
 					for _, h := range run.options.HostnameList {
 						l2 := run.log.With("Host", endpoint.String(), "host", h)
@@ -284,6 +274,11 @@ func (run *Runner) Run(total int) Status {
 					}
 
 					if host != nil {
+						if len(host.Certificates) > 0 {
+							if host.Cloud, err = dns.GetCloudProduct(host.Ip); err != nil {
+								run.log.Debug("Error getting DNS record", "err", err)
+							}
+						}
 						if err := run.runWriters(host); err != nil {
 							logger.Error("failed to write result", "err", err)
 						}

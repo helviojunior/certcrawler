@@ -11,8 +11,10 @@ import (
     "syscall"
     "time"
 
+	
 	//"github.com/helviojunior/certcrawler/internal/tools"
 	"github.com/helviojunior/certcrawler/internal/ascii"
+	"github.com/helviojunior/certcrawler/pkg/dns"
 	"github.com/helviojunior/certcrawler/pkg/log"
 	"github.com/helviojunior/certcrawler/pkg/runner"
 	"github.com/helviojunior/certcrawler/pkg/readers"
@@ -88,6 +90,8 @@ var rootCmd = &cobra.Command{
         	opts.Proxy = nil
         }
         
+        dns.InitResolver("", tProxy)
+
 		return nil
 	},
 }

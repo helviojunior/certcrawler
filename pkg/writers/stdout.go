@@ -47,12 +47,12 @@ func (s *StdoutWriter) Write(host *models.Host) error {
     for _, cert := range host.Certificates {
         if !cert.IsCA {
             subject := s.FormatCN(cert.Subject)
-        	logger.Info("Certificate found", "ip", host.Ip, "port", host.Port, "name", s.FormatCN(cert.Subject))
+        	logger.Info("Certificate found", _formatInterface(host.Ip, host.Port, s.FormatCN(cert.Subject), host.Cloud)...)
         	if len(cert.Names) > 2 {
                 for _, altName := range cert.Names {
                     n := s.FormatCN(altName.Name)
                     if altName.Type != "subject" && subject != n {
-                    	logger.Info("Certificate found", "ip", host.Ip, "port", host.Port, "name", n)
+                    	logger.Info("Certificate found", _formatInterface(host.Ip, host.Port, n, host.Cloud)...)
                     }
                 }
             }
@@ -60,6 +60,18 @@ func (s *StdoutWriter) Write(host *models.Host) error {
     }
 
 	return nil
+}
+
+func _formatInterface(ip string, port uint, name string, cloud string) []interface{} {
+    var keyvals []interface{}
+    keyvals = append(keyvals, "ip", ip)
+    keyvals = append(keyvals, "port", port)
+    keyvals = append(keyvals, "name", name)
+    if cloud != ""{
+        keyvals = append(keyvals, "cloud", cloud)
+    }
+
+    return keyvals
 }
 
 func (s *StdoutWriter) FormatCN(cn string) string {

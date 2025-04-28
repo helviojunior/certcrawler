@@ -130,6 +130,7 @@ type Host struct {
 
 	Ip				string      `json:"ip"`
 	Port        	uint        `json:"port"`
+	Cloud        	string      `json:"cloud"`
 	Host			string      `json:"host" gorm:"index:,unique;"`
 	//FQDN        	string      `json:"fqdn" gorm:uniqueIndex:idx_host_port"`
 
