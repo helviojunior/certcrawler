@@ -60,7 +60,7 @@ func InitResolver(dnsServer string, proxy string) error {
     return nil
 }
 
-func GetCloudProduct(ip string) (string, error) {
+func GetCloudProduct(ip string) (string, string, error) {
     if arpa, err := dns.ReverseAddr(ip); err == nil {
 
         m := new(dns.Msg)
@@ -79,18 +79,21 @@ func GetCloudProduct(ip string) (string, error) {
                     cc, prodName, _ := _containsCloudProduct(ptr.Ptr)
                     if cc {
                         log.Debug("DNS", "IP", ip, "PTR", ptr.Ptr, "product", prodName)
-                        return prodName, nil
+                        return strings.Trim(strings.ToLower(ptr.Ptr), ". "), prodName, nil
                     }
+
+                    log.Debug("DNS", "IP", ip, "PTR", ptr.Ptr)
+                    return strings.Trim(strings.ToLower(ptr.Ptr), ". "), "", nil
                 }
             }
         }else{
-            return "", err
+            return "", "", err
         }
     }else{
-        return "", err
+        return "", "", err
     }
 
-    return "", nil
+    return "", "", nil
 }
 
 func _containsCloudProduct(s string) (bool, string, string) {

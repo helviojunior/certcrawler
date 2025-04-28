@@ -74,7 +74,10 @@ func (t *TextWriter) formatResult(host *models.Host) string {
 
 	r := fmt.Sprintf("%s %d:\n", host.Ip, host.Port)
 	if host.Cloud != "" {
-		r += fmt.Sprintf("  |--> Cloud %s:\n", host.Cloud)
+		r += fmt.Sprintf("  |--> Cloud: %s\n", host.Cloud)
+	}
+	if host.Ptr != "" {
+		r += fmt.Sprintf("  |--> Ptr:   %s\n", host.Ptr)
 	}
 
     for i, cert := range host.Certificates {

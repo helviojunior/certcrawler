@@ -275,7 +275,7 @@ func (run *Runner) Run(total int) Status {
 
 					if host != nil {
 						if len(host.Certificates) > 0 {
-							if host.Cloud, err = dns.GetCloudProduct(host.Ip); err != nil {
+							if host.Ptr, host.Cloud, err = dns.GetCloudProduct(host.Ip); err != nil {
 								run.log.Debug("Error getting DNS record", "err", err)
 							}
 						}
