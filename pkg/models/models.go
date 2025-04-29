@@ -135,8 +135,8 @@ type Host struct {
 	Host			string      `json:"host" gorm:"index:,unique;"`
 	//FQDN        	string      `json:"fqdn" gorm:uniqueIndex:idx_host_port"`
 
-	Certificates    []*Certificate `gorm:"many2many:hosts_certs;"`
-	FQDNs           []*FQDN 		  `json:"fqdn" gorm:"constraint:OnDelete:CASCADE"`
+	Certificates    []*Certificate 	`gorm:"many2many:hosts_certs;"`
+	FQDNs           []*FQDN 	   	`json:"fqdn" gorm:"constraint:OnDelete:CASCADE"`
 }
 
 func (Host) TableName() string {

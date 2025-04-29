@@ -278,6 +278,9 @@ func (run *Runner) Run(total int) Status {
 							if host.Ptr, host.Cloud, err = dns.GetCloudProduct(host.Ip); err != nil {
 								run.log.Debug("Error getting DNS record", "err", err)
 							}
+							if host.Ptr != "" {
+								host.AddFQDN(host.Ptr)
+							}
 						}
 						if err := run.runWriters(host); err != nil {
 							logger.Error("failed to write result", "err", err)
