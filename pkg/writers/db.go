@@ -32,6 +32,15 @@ func NewDbWriter(uri string, debug bool) (*DbWriter, error) {
 		c = c.Clauses(clause.OnConflict{UpdateAll: true})
 	}*/
 
+	/*
+	if _, ok := c.Statement.Clauses["ON CONFLICT"]; !ok {
+		c = c.Clauses(clause.OnConflict{
+			Columns:   []clause.Column{{Name: "hash"}},
+			//DoNothing: true,
+			UpdateAll: true,
+		})
+	}*/
+
 	return &DbWriter{
 		URI:           uri,
 		conn:          c,

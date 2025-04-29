@@ -304,7 +304,6 @@ func (run *Runner) getCert(serverName string, endpoint netip.AddrPort) (*models.
 	result := &models.Host{
 		Ip       :endpoint.Addr().String(),
 		Port     :uint(endpoint.Port()),
-		Host     :endpoint.String(),
 		//FQDN     :serverName,
 		Certificates : []*models.Certificate{},
 	}

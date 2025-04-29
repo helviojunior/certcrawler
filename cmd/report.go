@@ -117,14 +117,14 @@ func convertFromDbTo(from string, writers []writers.Writer) error {
     if len(filterList) > 0 {
         sqlHosts := prepareSQL([]string{"h.ptr", "cn.name"})
 
-        if err := conn.Raw("SELECT distinct h.id from hosts_certs as hc inner join cert_names as cn on cn.certificate_id = hc.host_id inner join hosts as h on h.id = hc.host_id WHERE cn.name != '' " + sqlHosts).Find(&ids).Error; err != nil {
+        if err := conn.Raw("SELECT distinct h.id from hosts_certs as hc inner join cert_names as cn on cn.certificate_id = hc.certificate_id inner join hosts as h on h.id = hc.host_id WHERE cn.name != '' " + sqlHosts).Find(&ids).Error; err != nil {
             return err
         }
         if err := conn.Model(&models.Host{}).Preload(clause.Associations).Where("id in ?", ids).Preload("Certificates").Preload("Certificates.Names").Find(&results).Error; err != nil {
             return err
         }
     }else{
-        if err := conn.Model(&models.Host{}).Preload(clause.Associations).Where("host != ''").Preload("Certificates").Preload("Certificates.Names").Find(&results).Error; err != nil {
+        if err := conn.Model(&models.Host{}).Preload(clause.Associations).Preload("Certificates").Preload("Certificates.Names").Find(&results).Error; err != nil {
             return err
         }
     }
@@ -146,7 +146,7 @@ func convertFromDbTo(from string, writers []writers.Writer) error {
 }
 
 func convertFromJsonlTo(from string, writers []writers.Writer) error {
-    
+
     if len(writers) == 0 {
         log.Warn("no writers have been configured. to persist probe results, add writers using --write-* flags")
     }
