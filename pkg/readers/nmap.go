@@ -5,7 +5,7 @@ import (
     "os"
 
     "net/netip"
-    //"strings"
+    "strings"
 
     "github.com/lair-framework/go-nmap"
     "github.com/helviojunior/certcrawler/internal/tools"
@@ -43,7 +43,26 @@ func (nr *NmapReader) Read(outList *[]netip.AddrPort) error {
 
     nmapXML, err := nmap.Parse(xml)
     if err != nil {
-        return err
+        if len(xml) < 1024 {
+            return err
+        }
+
+        log.Warn("XML data is broken, trying to solve that...", "err", err)
+
+        // Check if we can solve the most common issue
+        var err2 error
+        newText := string(xml[len(xml)-1024:])
+        if strings.Contains(newText, "<runstats") && !strings.Contains(newText, "</runstats>") {
+            xml = append(xml, []byte("</runstats>")...)
+        } 
+        if !strings.Contains(newText, "</nmaprun>") {
+            xml =  append(xml, []byte("</nmaprun>")...)
+        } 
+        nmapXML, err2 = nmap.Parse(xml)
+        if err2 != nil {
+            return err //Return original error
+        }
+        log.Warn("Issue resolved: XML data has been successfully repaired and loaded.")
     }
 
     for _, host := range nmapXML.Hosts {
