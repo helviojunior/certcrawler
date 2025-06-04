@@ -21,6 +21,8 @@ import (
     "encoding/base64"
     //"strconv"
 
+    "golang.org/x/term"
+
 	//"github.com/helviojunior/certcrawler/internal"
 	"github.com/helviojunior/certcrawler/internal/ascii"
 	"github.com/helviojunior/certcrawler/internal/tools"
@@ -70,20 +72,27 @@ type Status struct {
 	TLSError int
 	Spin string
 	Running bool
+    IsTerminal bool
+    log *slog.Logger
 }
 
 func (st *Status) Print() { 
 
-	st.Spin = ascii.GetNextSpinner(st.Spin)
+	if st.IsTerminal {
+		st.Spin = ascii.GetNextSpinner(st.Spin)
 
-	fmt.Fprintf(os.Stderr, "%s\n %s (%s/%s) conn error: %s, tls error: %s               \r\033[A", 
-    	"                                                                        ",
-    	ascii.ColoredSpin(st.Spin), 
-    	tools.FormatInt(st.Complete), 
-    	tools.FormatInt(st.Total), 
-    	tools.FormatInt(st.ConnectionError), 
-    	tools.FormatInt(st.TLSError))
-	
+		fmt.Fprintf(os.Stderr, "%s\n %s (%s/%s) conn error: %s, tls error: %s               \r\033[A", 
+	    	"                                                                        ",
+	    	ascii.ColoredSpin(st.Spin), 
+	    	tools.FormatInt(st.Complete), 
+	    	tools.FormatInt(st.Total), 
+	    	tools.FormatInt(st.ConnectionError), 
+	    	tools.FormatInt(st.TLSError))
+	}else{
+		st.log.Info("STATUS", 
+            "complete", st.Complete, "total", st.Total, "conn error", st.ConnectionError, 
+            "tls error", st.TLSError)
+	}
 } 
 
 func (run *Runner) GetLog() *slog.Logger{ 
@@ -129,6 +138,8 @@ func NewRunner(logger *slog.Logger, opts Options, writers []writers.Writer, dbUr
 			Skiped: 0,
 			Spin: "",
 			Running: true,
+            IsTerminal: term.IsTerminal(int(os.Stdin.Fd())),
+            log: logger,
 		},
 	}, nil
 }
@@ -202,7 +213,11 @@ func (run *Runner) Run(total int) Status {
 						return
 					default:
 			        	run.status.Print()
-			        	time.Sleep(time.Duration(time.Second/4))
+			        	if run.status.IsTerminal {
+                            time.Sleep(time.Duration(time.Second / 4))
+                        }else{
+                            time.Sleep(time.Duration(time.Second * 30))
+                        }
 			    }
 	        }
 	    }()
