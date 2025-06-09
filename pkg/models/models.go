@@ -198,6 +198,22 @@ func (h *Host) BeforeCreate(tx *gorm.DB) (err error) {
 	return nil
 }
 
+func (h *Host) ResetID() {
+	h.ID = 0
+	for _, c := range h.Certificates {
+        c.ID = 0
+        for _, n := range c.Names {
+        	n.ID = 0
+        }
+        for _, h := range c.Hosts {
+        	h.ID = 0
+        }        
+    }
+    for _, f := range h.FQDNs {
+    	f.ID = 0
+    }
+}
+
 type FQDN struct {
 	ID       uint `json:"id" gorm:"primarykey"`
 	//HostID   uint `json:"host_id"`

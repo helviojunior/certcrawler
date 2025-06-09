@@ -132,6 +132,7 @@ func convertFromDbTo(from string, writers []writers.Writer) error {
     for _, result := range results {
         if len(result.Certificates) > 0 {
             rCount++
+            result.ResetID()
             for _, w := range writers {
                 if err := w.Write(result); err != nil {
                     return err
