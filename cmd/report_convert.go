@@ -114,12 +114,12 @@ target.`)),
         rptWriters = append(rptWriters, writer)
 
         if convertCmdFlags.fromExt == ".sqlite3" || convertCmdFlags.fromExt == ".db" {
-            if err := convertFromDbTo(convertCmdFlags.fromFile, writer, status); err != nil {
+            if err := convertFromDbTo(convertCmdFlags.fromFile, rptWriters); err != nil {
                 log.Error("failed to convert from SQLite", "err", err)
                 return
             }
         } else if convertCmdFlags.fromExt == ".jsonl" {
-            if err := convertFromJsonlTo(convertCmdFlags.fromFile, writer, status); err != nil {
+            if err := convertFromJsonlTo(convertCmdFlags.fromFile, rptWriters); err != nil {
                 log.Error("failed to convert from JSON Lines", "err", err)
                 return
             }
