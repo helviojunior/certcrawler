@@ -17,7 +17,7 @@ import (
 )
 
 
-
+var tempFolder string
 var crawlerRunner *runner.Runner
 var crawlerWriters = []writers.Writer{}
 var crawlerCmd = &cobra.Command{
@@ -52,8 +52,24 @@ multiple writers using the _--writer-*_ flags (see --help).
         // Configure writers that subcommand scanners will pass to
         // a runner instance.
 
+        controlDb := "sqlite:///"+ opts.Writer.UserPath + "/.certcrawler.db"
+
+        basePath := ""
+        if opts.StoreTempAsWorkspace {
+            basePath = "./"
+        }
+
+        if tempFolder, err = tools.CreateDir(tools.TempFileName(basePath, "certcrawler_", "")); err != nil {
+            log.Error("error creatting temp folder", "err", err)
+            os.Exit(2)
+        }
+
+        if opts.Writer.NoControlDb {
+            controlDb = "sqlite:///"+ tools.TempFileName(tempFolder, "certcrawler_", ".db")
+        }
+
         //The first one is the general writer (global user)
-        w, err := writers.NewDbWriter("sqlite:///" + opts.Writer.UserPath +"/.certcrawler.db", false)
+        w, err := writers.NewDbWriter(controlDb, false)
         if err != nil {
             return err
         }
@@ -160,6 +176,8 @@ multiple writers using the _--writer-*_ flags (see --help).
 
 func internalCrawlerRun(cmd *cobra.Command, args []string) {
 
+    log.Infof("Using address list file: %s", fileOptions.HostFile)
+
     if len(opts.AddrressList) == 0 {
         log.Error("Address list is empty")
         os.Exit(2)
@@ -201,5 +219,7 @@ func init() {
     
     crawlerCmd.PersistentFlags().StringVarP(&opts.HostName, "hostname", "d", "", "Hostname or Hostname file list")
     crawlerCmd.PersistentFlags().BoolVarP(&opts.ForceCheck, "force", "F", false, "Force to check all hosts again.")
+    crawlerCmd.PersistentFlags().BoolVar(&opts.Writer.NoControlDb, "disable-control-db", false, "Disable utilization of database ~/.certcrawler.db.")
+    crawlerCmd.PersistentFlags().BoolVar(&opts.StoreTempAsWorkspace, "local-temp", false, "Use execution path to store temp files")
     
 }

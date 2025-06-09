@@ -23,6 +23,7 @@ type Options struct {
     HostnameList []string
 
     ForceCheck bool
+    StoreTempAsWorkspace bool
 }
 
 // Logging is log related options
@@ -51,6 +52,7 @@ type Writer struct {
     TextFile  string
     Stdout    bool
     None      bool
+    NoControlDb bool
 }
 
 // DNS Over HTTPs related options
