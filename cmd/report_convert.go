@@ -64,10 +64,6 @@ target.`)),
             return errors.New("source and destination files must have extensions")
         }
 
-        if convertCmdFlags.fromExt == convertCmdFlags.toExt && len(filterList) == 0 {
-            return errors.New("👀 source and destination file types must be different")
-        }
-
         if convertCmdFlags.fromFile == convertCmdFlags.toFile {
             return errors.New("source and destination files cannot be the same")
         }
@@ -118,14 +114,13 @@ target.`)),
         rptWriters = append(rptWriters, writer)
 
         if convertCmdFlags.fromExt == ".sqlite3" || convertCmdFlags.fromExt == ".db" {
-            if err := convertFromDbTo(convertCmdFlags.fromFile, rptWriters); err != nil {
-                log.Error("failed to convert to JSON Lines", "err", err)
+            if err := convertFromDbTo(convertCmdFlags.fromFile, writer, status); err != nil {
+                log.Error("failed to convert from SQLite", "err", err)
                 return
             }
-        } else if convertCmdFlags.toExt == ".jsonl" {
-            
-            if err := convertFromJsonlTo(convertCmdFlags.fromFile, rptWriters); err != nil {
-                log.Error("failed to convert to SQLite", "err", err)
+        } else if convertCmdFlags.fromExt == ".jsonl" {
+            if err := convertFromJsonlTo(convertCmdFlags.fromFile, writer, status); err != nil {
+                log.Error("failed to convert from JSON Lines", "err", err)
                 return
             }
         }

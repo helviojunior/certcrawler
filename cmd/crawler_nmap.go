@@ -74,6 +74,8 @@ be generated for results that match one of the specified ports.
             return err
         }
 
+        fileOptions.AddrFile = nmapCmdOptions.Source
+
         return nil
     },
     Run: func(cmd *cobra.Command, args []string) {

@@ -159,8 +159,10 @@ multiple writers using the _--writer-*_ flags (see --help).
                 log.Error("error in reader.Read", "err", err)
                 return err
             }
+            log.Infof("Using hosts list file: %s", fileOptions.HostFile)
         }else{
             opts.HostnameList = append(opts.HostnameList, opts.HostName)
+            log.Infof("Using hosts: %s", opts.HostName)
         }
 
         if len(opts.HostnameList) == 0 {
@@ -176,7 +178,7 @@ multiple writers using the _--writer-*_ flags (see --help).
 
 func internalCrawlerRun(cmd *cobra.Command, args []string) {
 
-    log.Infof("Using address list file: %s", fileOptions.HostFile)
+    log.Infof("Using address list file: %s", fileOptions.AddrFile)
 
     if len(opts.AddrressList) == 0 {
         log.Error("Address list is empty")
