@@ -182,7 +182,7 @@ func internalCrawlerRun(cmd *cobra.Command, args []string) {
 
     if len(opts.AddrressList) == 0 {
         log.Error("Address list is empty")
-        os.Exit(2)
+        os.Exit(5)
     }
 
     total := len(opts.AddrressList) * len(opts.HostnameList)
