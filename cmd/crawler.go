@@ -16,7 +16,7 @@ import (
     "github.com/spf13/cobra"
 )
 
-
+var ctrlDbUri string
 var tempFolder string
 var crawlerRunner *runner.Runner
 var crawlerWriters = []writers.Writer{}
@@ -52,7 +52,7 @@ multiple writers using the _--writer-*_ flags (see --help).
         // Configure writers that subcommand scanners will pass to
         // a runner instance.
 
-        controlDb := "sqlite:///"+ opts.Writer.UserPath + "/.certcrawler.db"
+        ctrlDbUri = "sqlite:///"+ opts.Writer.UserPath + "/.certcrawler.db"
 
         basePath := ""
         if opts.StoreTempAsWorkspace {
@@ -65,11 +65,11 @@ multiple writers using the _--writer-*_ flags (see --help).
         }
 
         if opts.Writer.NoControlDb {
-            controlDb = "sqlite:///"+ tools.TempFileName(tempFolder, "certcrawler_", ".db")
+            ctrlDbUri = "sqlite:///"+ tools.TempFileName(tempFolder, "certcrawler_", ".db")
         }
 
         //The first one is the general writer (global user)
-        w, err := writers.NewDbWriter(controlDb, false)
+        w, err := writers.NewDbWriter(ctrlDbUri, false)
         if err != nil {
             return err
         }
@@ -191,7 +191,7 @@ func internalCrawlerRun(cmd *cobra.Command, args []string) {
     // An slog-capable logger to use with drivers and runners
     logger := slog.New(log.Logger)
     // Get the runner up. Basically, all of the subcommands will use this.
-    crawlerRunner, err := runner.NewRunner(logger, *opts, crawlerWriters, "sqlite:///" + opts.Writer.UserPath +"/.certcrawler.db")
+    crawlerRunner, err := runner.NewRunner(logger, *opts, crawlerWriters, ctrlDbUri)
     if err != nil {
         log.Error("error creating new runner", "err", err)
         os.Exit(2)
