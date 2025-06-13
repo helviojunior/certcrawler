@@ -21,6 +21,9 @@ import (
     "encoding/base64"
     //"strconv"
 
+    "crypto/x509"
+    "bytes"
+
     "golang.org/x/term"
 
 	//"github.com/helviojunior/certcrawler/internal"
@@ -190,6 +193,19 @@ func (run *Runner) runCtrlWriters(serverName string, endpoint netip.AddrPort) er
 	return nil
 }
 
+// IsSelfSigned checks if a certificate is self-signed
+func IsSelfSigned(cert *x509.Certificate) bool {
+    // Check if subject and issuer are equal
+    if !bytes.Equal(cert.RawSubject, cert.RawIssuer) {
+        return false
+    }
+
+    // Try to verify the certificate with its own public key
+    err := cert.CheckSignatureFrom(cert)
+    return err == nil
+}
+
+
 func (run *Runner) Run(total int) Status {
 	wg := sync.WaitGroup{}
 	swg := sync.WaitGroup{}
@@ -355,7 +371,7 @@ func (run *Runner) getCert(serverName string, endpoint netip.AddrPort) (*models.
     		NotAfter             : cert.NotAfter,
     		IsCA                 : cert.IsCA,
     		IsRootCA             : cert.IsCA && (cert.Subject.String() == cert.Issuer.String()),
-    		SelfSigned           : (cert.Subject.String() == cert.Issuer.String()),
+    		SelfSigned           : IsSelfSigned(cert),
     		RawData              : base64.StdEncoding.EncodeToString([]byte(cert.Raw)),
     		Names                : []*models.CertNames{},
     	}
