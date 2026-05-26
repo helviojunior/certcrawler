@@ -277,87 +277,80 @@ func (run *Runner) Run(total int) Status {
 						continue
 					}
 
-					var err error
-					var host *models.Host
+					// The host record key is (ip, port, sni), so each hostname
+					// (SNI) queried against this endpoint produces its own
+					// record.
 					for _, h := range run.options.HostnameList {
 						l2 := run.log.With("Host", endpoint.String(), "host", h)
 
-						if run.mustCheck(h, endpoint) {
+						// Skip if this (ip, port, sni) was already checked.
+						if !run.mustCheck(h, endpoint) {
+							run.status.Complete += 1
+							continue
+						}
 
-							run.runCtrlWriters(h, endpoint)
+						run.runCtrlWriters(h, endpoint)
 
-							h1, err := run.getCert(h, endpoint)
+						var host *models.Host
 
-							if err != nil {
-								l2.Debug("error getting cert", "err", err)
-								run.status.TLSError += 1
-							} else {
-								if h1 != nil {
-									if host == nil {
-										host = h1
-									} else {
-										for _, h2 := range h1.Certificates {
-											host.AddCertificate(h2)
-										}
-									}
+						h1, cerr := run.getCert(h, endpoint)
+						if cerr != nil {
+							l2.Debug("error getting cert", "err", cerr)
+							run.status.TLSError += 1
+						} else if h1 != nil {
+							host = h1
+						}
+
+						// Detect the HTTP/HTTPS application protocol for this
+						// endpoint (populated by the nmap reader).
+						proto := ""
+						if run.options.ServiceMap != nil {
+							proto = run.options.ServiceMap[endpoint.String()]
+						}
+
+						// For plain HTTP/HTTPS endpoints without a certificate we
+						// still want to store the banner and title, so create a
+						// minimal host record keyed by this SNI.
+						if host == nil && (proto == "http" || proto == "https") {
+							host = &models.Host{
+								Ip:           endpoint.Addr().String(),
+								Port:         uint(endpoint.Port()),
+								SNI:          h,
+								Certificates: []*models.Certificate{},
+							}
+						}
+
+						if host != nil {
+							host.AddFQDN(h)
+
+							// Best-effort HTTP banner + title collection using
+							// this SNI. Any failure here must not prevent the
+							// remaining information from being stored.
+							if proto == "http" || proto == "https" {
+								if banner, title, herr := run.getHTTPInfo(proto, h, endpoint); herr != nil {
+									l2.Debug("error getting http banner/title", "err", herr)
+								} else {
+									host.Banner = banner
+									host.Title = title
 								}
 							}
-							if host != nil {
-								host.AddFQDN(h)
+
+							if len(host.Certificates) > 0 {
+								var derr error
+								if host.Ptr, host.Cloud, derr = dns.GetCloudProduct(host.Ip); derr != nil {
+									l2.Debug("Error getting DNS record", "err", derr)
+								}
+								if host.Ptr != "" {
+									host.AddFQDN(host.Ptr)
+								}
+							}
+							if werr := run.runWriters(host); werr != nil {
+								l2.Error("failed to write result", "err", werr)
 							}
 						}
 
 						run.status.Complete += 1
 					}
-
-					// Detect the HTTP/HTTPS application protocol for this
-					// endpoint (populated by the nmap reader).
-					proto := ""
-					if run.options.ServiceMap != nil {
-						proto = run.options.ServiceMap[endpoint.String()]
-					}
-
-					// For plain HTTP/HTTPS endpoints without a certificate we
-					// still want to store the banner and title, so create a
-					// minimal host record.
-					if host == nil && (proto == "http" || proto == "https") {
-						host = &models.Host{
-							Ip:           endpoint.Addr().String(),
-							Port:         uint(endpoint.Port()),
-							Certificates: []*models.Certificate{},
-						}
-					}
-
-					if host != nil {
-						// Best-effort HTTP banner + title collection. Any
-						// failure here must not prevent the remaining
-						// information from being stored.
-						if proto == "http" || proto == "https" {
-							serverName := ""
-							if len(run.options.HostnameList) > 0 {
-								serverName = run.options.HostnameList[0]
-							}
-							if banner, title, herr := run.getHTTPInfo(proto, serverName, endpoint); herr != nil {
-								logger.Debug("error getting http banner/title", "err", herr)
-							} else {
-								host.Banner = banner
-								host.Title = title
-							}
-						}
-
-						if len(host.Certificates) > 0 {
-							if host.Ptr, host.Cloud, err = dns.GetCloudProduct(host.Ip); err != nil {
-								run.log.Debug("Error getting DNS record", "err", err)
-							}
-							if host.Ptr != "" {
-								host.AddFQDN(host.Ptr)
-							}
-						}
-						if err := run.runWriters(host); err != nil {
-							logger.Error("failed to write result", "err", err)
-						}
-					}
-
 				}
 			}
 
@@ -375,6 +368,7 @@ func (run *Runner) getCert(serverName string, endpoint netip.AddrPort) (*models.
 	result := &models.Host{
 		Ip:   endpoint.Addr().String(),
 		Port: uint(endpoint.Port()),
+		SNI:  serverName,
 		//FQDN     :serverName,
 		Certificates: []*models.Certificate{},
 	}

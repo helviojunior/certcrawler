@@ -171,6 +171,10 @@ type Host struct {
 	Cloud string `json:"cloud"`
 	Ptr   string `json:"ptr"`
 
+	// SNI holds the FQDN (server name) used in the query that produced this
+	// host record.
+	SNI string `json:"sni"`
+
 	// Banner holds the full HTTP response header (no redirects followed) when
 	// the nmap-detected service is HTTP/HTTPS. Best-effort/optional.
 	Banner string `json:"banner"`
@@ -189,7 +193,7 @@ func (Host) TableName() string {
 }
 
 func (h *Host) BeforeCreate(tx *gorm.DB) (err error) {
-	_calcHash(&h.Hash, h.Ip, h.Port)
+	_calcHash(&h.Hash, h.Ip, h.Port, h.SNI)
 
 	tx.Statement.AddClause(clause.OnConflict{
 		//Columns:   cols,
