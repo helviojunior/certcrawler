@@ -335,20 +335,21 @@ func (run *Runner) Run(total int) Status {
 							if h != "" {
 								host.AddFQDN(h)
 							}
-
-							// Best-effort HTTP banner + title collection using
-							// this SNI. Any failure here must not prevent the
-							// remaining information from being stored.
-							if proto == "http" || proto == "https" {
-								if banner, title, herr := run.getHTTPInfo(proto, h, endpoint); herr != nil {
-									l2.Debug("error getting http banner/title", "err", herr)
-								} else {
-									host.Banner = banner
-									host.Title = title
-								}
-							}
-
+							
 							if len(host.Certificates) > 0 {
+								// Best-effort HTTP banner + title collection using
+								// this SNI. Any failure here must not prevent the
+								// remaining information from being stored.
+								if proto == "http" || proto == "https" {
+									if banner, title, herr := run.getHTTPInfo(proto, h, endpoint); herr != nil {
+										l2.Debug("error getting http banner/title", "err", herr)
+									} else {
+										host.Banner = banner
+										host.Title = title
+									}
+								}
+
+							
 								var derr error
 								if host.Ptr, host.Cloud, derr = dns.GetCloudProduct(host.Ip); derr != nil {
 									l2.Debug("Error getting DNS record", "err", derr)
