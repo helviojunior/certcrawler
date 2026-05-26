@@ -22,6 +22,11 @@ type Options struct {
     AddrressList []netip.AddrPort
     HostnameList []string
 
+    // ServiceMap maps "ip:port" to the detected application protocol
+    // ("http" or "https"). When set (e.g. by the nmap reader), the runner
+    // collects the HTTP banner and page title for those endpoints.
+    ServiceMap map[string]string
+
     ForceCheck bool
     StoreTempAsWorkspace bool
 }

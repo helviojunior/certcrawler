@@ -76,6 +76,10 @@ be generated for results that match one of the specified ports.
 
         fileOptions.AddrFile = nmapCmdOptions.Source
 
+        // Pass the HTTP/HTTPS protocol map detected from the Nmap services
+        // to the runner so it can collect the HTTP banner and page title.
+        opts.ServiceMap = nmapCmdOptions.Protocols
+
         return nil
     },
     Run: func(cmd *cobra.Command, args []string) {

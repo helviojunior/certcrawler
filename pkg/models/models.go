@@ -173,7 +173,13 @@ type Host struct {
 	Port        	uint        `json:"port"`
 	Cloud        	string      `json:"cloud"`
 	Ptr        		string      `json:"ptr"`
-	
+
+	// Banner holds the full HTTP response header (no redirects followed) when
+	// the nmap-detected service is HTTP/HTTPS. Best-effort/optional.
+	Banner          string      `json:"banner"`
+	// Title holds the page <title> content when present. Best-effort/optional.
+	Title           string      `json:"title"`
+
 	//FQDN        	string      `json:"fqdn" gorm:uniqueIndex:idx_host_port"`
 
 	Certificates    []*Certificate 	`gorm:"many2many:hosts_certs;"`

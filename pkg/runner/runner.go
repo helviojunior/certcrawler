@@ -8,11 +8,16 @@ import (
 	//"net/mail"
 	"crypto/tls"
     "net"
+    "net/http"
+    "net/http/httputil"
 	"os"
 	"fmt"
+	"io"
+	"html"
+	"regexp"
 	"sync"
 	"time"
-	//"strings"
+	"strings"
 	//"math/rand/v2"
 	"os/signal"
     "syscall"
@@ -35,6 +40,9 @@ import (
 	"github.com/helviojunior/certcrawler/pkg/database"
 	"gorm.io/gorm"
 )
+
+// titleRegex extracts the content of the first <title> tag in an HTML page.
+var titleRegex = regexp.MustCompile(`(?is)<title[^>]*>(.*?)</title>`)
 
 // Runner is a runner that probes web targets using a driver
 type Runner struct {
@@ -304,7 +312,41 @@ func (run *Runner) Run(total int) Status {
 						run.status.Complete += 1
 					}
 
+					// Detect the HTTP/HTTPS application protocol for this
+					// endpoint (populated by the nmap reader).
+					proto := ""
+					if run.options.ServiceMap != nil {
+						proto = run.options.ServiceMap[endpoint.String()]
+					}
+
+					// For plain HTTP/HTTPS endpoints without a certificate we
+					// still want to store the banner and title, so create a
+					// minimal host record.
+					if host == nil && (proto == "http" || proto == "https") {
+						host = &models.Host{
+							Ip           : endpoint.Addr().String(),
+							Port         : uint(endpoint.Port()),
+							Certificates : []*models.Certificate{},
+						}
+					}
+
 					if host != nil {
+						// Best-effort HTTP banner + title collection. Any
+						// failure here must not prevent the remaining
+						// information from being stored.
+						if proto == "http" || proto == "https" {
+							serverName := ""
+							if len(run.options.HostnameList) > 0 {
+								serverName = run.options.HostnameList[0]
+							}
+							if banner, title, herr := run.getHTTPInfo(proto, serverName, endpoint); herr != nil {
+								logger.Debug("error getting http banner/title", "err", herr)
+							} else {
+								host.Banner = banner
+								host.Title = title
+							}
+						}
+
 						if len(host.Certificates) > 0 {
 							if host.Ptr, host.Cloud, err = dns.GetCloudProduct(host.Ip); err != nil {
 								run.log.Debug("Error getting DNS record", "err", err)
@@ -424,6 +466,67 @@ func (run *Runner) getCert(serverName string, endpoint netip.AddrPort) (*models.
     }
     
     return result, nil
+}
+
+// getHTTPInfo performs a single GET request against the endpoint (without
+// following redirects) and returns the full HTTP response header as the banner
+// and the page <title> content, when present. It is best-effort: callers
+// should treat an error as "no banner/title available" and continue.
+func (run *Runner) getHTTPInfo(scheme string, serverName string, endpoint netip.AddrPort) (string, string, error) {
+	timeout := run.Timeout
+	if run.options.Scan.Timeout > 0 {
+		timeout = time.Duration(run.options.Scan.Timeout) * time.Second
+	}
+
+	transport := &http.Transport{
+		TLSClientConfig: &tls.Config{
+			InsecureSkipVerify: true,
+			ServerName:         serverName,
+			MinVersion:         tls.VersionSSL30,
+			MaxVersion:         tls.VersionTLS13,
+		},
+		DisableKeepAlives: true,
+	}
+
+	client := &http.Client{
+		Transport: transport,
+		Timeout:   timeout,
+		// Do not follow redirects: keep the original response headers.
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
+	}
+
+	url := fmt.Sprintf("%s://%s/", scheme, endpoint.String())
+	req, err := http.NewRequestWithContext(run.ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return "", "", err
+	}
+	if serverName != "" {
+		req.Host = serverName
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", "", err
+	}
+	defer resp.Body.Close()
+
+	// Banner: full HTTP response header (status line + headers), no body.
+	banner := ""
+	if bannerBytes, derr := httputil.DumpResponse(resp, false); derr == nil {
+		banner = string(bannerBytes)
+	}
+
+	// Title: parse the first <title> from a bounded amount of the body.
+	title := ""
+	if body, rerr := io.ReadAll(io.LimitReader(resp.Body, 512*1024)); rerr == nil {
+		if m := titleRegex.FindSubmatch(body); len(m) > 1 {
+			title = strings.Join(strings.Fields(html.UnescapeString(string(m[1]))), " ")
+		}
+	}
+
+	return banner, title, nil
 }
 
 func (run *Runner) isPortOpen(endpoint netip.AddrPort) bool {

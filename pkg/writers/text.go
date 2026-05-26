@@ -79,6 +79,9 @@ func (t *TextWriter) formatResult(host *models.Host) string {
 	if host.Ptr != "" {
 		r += fmt.Sprintf("  |--> Ptr:   %s\n", host.Ptr)
 	}
+	if host.Title != "" {
+		r += fmt.Sprintf("  |--> Title: %s\n", host.Title)
+	}
 
     for i, cert := range host.Certificates {
     	ca := ""

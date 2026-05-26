@@ -22,9 +22,14 @@ type NmapReader struct {
 type NmapReaderOptions struct {
     // Path to an Nmap XML file
     Source  string
-    
+
     // Ports to limit scans to
     Ports []int
+
+    // Protocols maps "ip:port" to the detected application protocol
+    // ("http" or "https") based on the Nmap service information. Only
+    // HTTP/HTTPS services are recorded here.
+    Protocols map[string]string
 }
 
 // NewNmapReader prepares a new Nmap reader
@@ -89,11 +94,39 @@ func (nr *NmapReader) Read(outList *[]netip.AddrPort) error {
                 }
 
                 // ip:port candidates
-                *outList = append(*outList, netip.AddrPortFrom(ip, uint16(port.PortId)))
+                endpoint := netip.AddrPortFrom(ip, uint16(port.PortId))
+                *outList = append(*outList, endpoint)
+
+                // Record the HTTP/HTTPS application protocol (if any) so the
+                // runner can grab the HTTP banner and page title.
+                if proto := httpProtocol(&port); proto != "" {
+                    if nr.Options.Protocols == nil {
+                        nr.Options.Protocols = map[string]string{}
+                    }
+                    nr.Options.Protocols[endpoint.String()] = proto
+                }
             }
         }
     }
 
     return nil
+}
+
+// httpProtocol inspects an Nmap port's service information and returns "https"
+// for TLS-wrapped HTTP services, "http" for plain HTTP services, or an empty
+// string when the service is not HTTP-based.
+func httpProtocol(port *nmap.Port) string {
+    name := strings.ToLower(port.Service.Name)
+    tunnel := strings.ToLower(port.Service.Tunnel)
+
+    if !strings.Contains(name, "http") {
+        return ""
+    }
+
+    if tunnel == "ssl" || tunnel == "tls" || strings.Contains(name, "https") || strings.HasPrefix(name, "ssl/") {
+        return "https"
+    }
+
+    return "http"
 }
 
