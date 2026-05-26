@@ -44,6 +44,11 @@ import (
 // titleRegex extracts the content of the first <title> tag in an HTML page.
 var titleRegex = regexp.MustCompile(`(?is)<title[^>]*>(.*?)</title>`)
 
+// endpointClosedFQDN is the control-table sentinel used to remember that an
+// endpoint was previously found with a closed port. It must never collide with
+// a real hostname or with the empty SNI used for the baseline request.
+const endpointClosedFQDN = "\x00:closed"
+
 // Runner is a runner that probes web targets using a driver
 type Runner struct {
 
@@ -253,7 +258,11 @@ func (run *Runner) Run(total int) Status {
 		go func() {
 			defer wg.Done()
 			tools.RandSleep()
-			hnCount := len(run.options.HostnameList)
+			// Always probe the endpoint once without SNI (empty server name)
+			// to capture the server's baseline response, in addition to one
+			// query per configured hostname.
+			queries := append([]string{""}, run.options.HostnameList...)
+			hnCount := len(queries)
 			for run.status.Running {
 				select {
 				case <-run.ctx.Done():
@@ -264,7 +273,7 @@ func (run *Runner) Run(total int) Status {
 					}
 					logger := run.log.With("Host", endpoint.String())
 
-					if !run.mustCheck("", endpoint) {
+					if !run.mustCheck(endpointClosedFQDN, endpoint) {
 						run.status.Complete += hnCount
 						continue
 					}
@@ -273,14 +282,14 @@ func (run *Runner) Run(total int) Status {
 						logger.Debug("tcp port closed")
 						run.status.Complete += hnCount
 						run.status.ConnectionError += hnCount
-						run.runCtrlWriters("", endpoint)
+						run.runCtrlWriters(endpointClosedFQDN, endpoint)
 						continue
 					}
 
-					// The host record key is (ip, port, sni), so each hostname
-					// (SNI) queried against this endpoint produces its own
-					// record.
-					for _, h := range run.options.HostnameList {
+					// The host record key is (ip, port, sni), so each query
+					// (the no-SNI baseline plus one per hostname) against this
+					// endpoint produces its own record.
+					for _, h := range queries {
 						l2 := run.log.With("Host", endpoint.String(), "host", h)
 
 						// Skip if this (ip, port, sni) was already checked.
@@ -321,7 +330,11 @@ func (run *Runner) Run(total int) Status {
 						}
 
 						if host != nil {
-							host.AddFQDN(h)
+							// The baseline query has no SNI, so there is no
+							// hostname to record for it.
+							if h != "" {
+								host.AddFQDN(h)
+							}
 
 							// Best-effort HTTP banner + title collection using
 							// this SNI. Any failure here must not prevent the

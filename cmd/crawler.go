@@ -184,7 +184,8 @@ func internalCrawlerRun(cmd *cobra.Command, args []string) {
 		os.Exit(5)
 	}
 
-	total := len(opts.AddrressList) * len(opts.HostnameList)
+	// Each endpoint is probed once per hostname plus one no-SNI baseline query.
+	total := len(opts.AddrressList) * (len(opts.HostnameList) + 1)
 	log.Infof("Enumerating %s hosts", tools.FormatInt(total))
 
 	// An slog-capable logger to use with drivers and runners
