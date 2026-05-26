@@ -2,31 +2,30 @@ package cmd
 
 import (
 	//"crypto/tls"
-	"net/url"
-	"os/user"
-	"os"
-	"fmt"
 	"errors"
+	"fmt"
+	"net/url"
+	"os"
 	"os/signal"
-    "syscall"
-    "time"
+	"os/user"
+	"syscall"
+	"time"
 
-	
 	//"github.com/helviojunior/certcrawler/internal/tools"
 	"github.com/helviojunior/certcrawler/internal/ascii"
 	"github.com/helviojunior/certcrawler/pkg/dns"
 	"github.com/helviojunior/certcrawler/pkg/log"
-	"github.com/helviojunior/certcrawler/pkg/runner"
 	"github.com/helviojunior/certcrawler/pkg/readers"
-    resolver "github.com/helviojunior/gopathresolver"
+	"github.com/helviojunior/certcrawler/pkg/runner"
+	resolver "github.com/helviojunior/gopathresolver"
 	"github.com/spf13/cobra"
 )
 
 var (
-	opts = &runner.Options{}
+	opts        = &runner.Options{}
 	fileOptions = &readers.FileReaderOptions{}
-	tProxy = ""
-	forceCheck = false
+	tProxy      = ""
+	forceCheck  = false
 )
 
 var rootCmd = &cobra.Command{
@@ -40,15 +39,15 @@ var rootCmd = &cobra.Command{
    - certcrawler crawler nmap -d sec4us.com.br -f /tmp/nmap.xml -o certcrawler.txt
    - certcrawler crawler nmap -d /tmp/hostnames.txt -f /tmp/nmap.xml --write-db`,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-		
+
 		usr, err := user.Current()
-	    if err != nil {
-	       return err
-	    }
+		if err != nil {
+			return err
+		}
 
-	    opts.Writer.UserPath = usr.HomeDir
+		opts.Writer.UserPath = usr.HomeDir
 
-	    if cmd.CalledAs() != "version" && !opts.Logging.Silence {
+		if cmd.CalledAs() != "version" && !opts.Logging.Silence {
 			fmt.Println(ascii.Logo())
 		}
 
@@ -61,58 +60,58 @@ var rootCmd = &cobra.Command{
 			log.Debug("debug logging enabled")
 		}
 
-        if opts.Writer.TextFile != "" {
+		if opts.Writer.TextFile != "" {
 
-        	opts.Writer.TextFile, err = resolver.ResolveFullPath(opts.Writer.TextFile)
-	        if err != nil {
-	            return err
-	        }
+			opts.Writer.TextFile, err = resolver.ResolveFullPath(opts.Writer.TextFile)
+			if err != nil {
+				return err
+			}
 
-            opts.Writer.Text = true
-        }
+			opts.Writer.Text = true
+		}
 
-        //Check Proxy config
-        if tProxy != "" {
-        	u, err := url.Parse(tProxy)
-        	if err != nil {
-	        	return errors.New("Error parsing URL: " + err.Error())
-	        }
+		//Check Proxy config
+		if tProxy != "" {
+			u, err := url.Parse(tProxy)
+			if err != nil {
+				return errors.New("Error parsing URL: " + err.Error())
+			}
 
-	        opts.Proxy = u
-	        //fileOptions.ProxyUri = opts.Proxy
+			opts.Proxy = u
+			//fileOptions.ProxyUri = opts.Proxy
 
 			port := u.Port()
 			if port == "" {
 				port = "1080"
 			}
-	        log.Warn("Setting proxy to " + u.Scheme + "://" + u.Hostname() + ":" + port)
-        }else{
-        	opts.Proxy = nil
-        }
-        
-        dns.InitResolver("", tProxy)
+			log.Warn("Setting proxy to " + u.Scheme + "://" + u.Hostname() + ":" + port)
+		} else {
+			opts.Proxy = nil
+		}
+
+		dns.InitResolver("", tProxy)
 
 		return nil
 	},
 }
 
 func Execute() {
-	
+
 	ascii.SetConsoleColors()
 
 	c := make(chan os.Signal)
-    signal.Notify(c, os.Interrupt, syscall.SIGTERM)
-    go func() {
-        <-c
-        ascii.ClearLine()
-        fmt.Fprintf(os.Stderr, "\r\n")
-        ascii.ClearLine()
-        ascii.ShowCursor()
-        log.Warn("interrupted, shutting down...                            ")
-        ascii.ClearLine()
-        fmt.Printf("\n")
-        os.Exit(2)
-    }()
+	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
+	go func() {
+		<-c
+		ascii.ClearLine()
+		fmt.Fprintf(os.Stderr, "\r\n")
+		ascii.ClearLine()
+		ascii.ShowCursor()
+		log.Warn("interrupted, shutting down...                            ")
+		ascii.ClearLine()
+		fmt.Printf("\n")
+		os.Exit(2)
+	}()
 
 	rootCmd.CompletionOptions.DisableDefaultCmd = true
 	rootCmd.SilenceErrors = true
@@ -139,10 +138,10 @@ func Execute() {
 	}
 
 	//Time to wait the logger flush
-	time.Sleep(time.Second/4)
+	time.Sleep(time.Second / 4)
 	ascii.ClearLine()
-    ascii.ShowCursor()
-    fmt.Printf("\n")
+	ascii.ShowCursor()
+	fmt.Printf("\n")
 }
 
 func init() {
@@ -151,29 +150,28 @@ func init() {
 	rootCmd.PersistentFlags().BoolVarP(&opts.Logging.Debug, "debug-log", "D", false, "Enable debug logging")
 	rootCmd.PersistentFlags().BoolVarP(&opts.Logging.Silence, "quiet", "q", false, "Silence (almost all) logging")
 
-    // Logging control for subcommands
-    rootCmd.PersistentFlags().BoolVar(&opts.Logging.LogScanErrors, "log-scan-errors", false, "Log scan errors (timeouts, DNS errors, etc.) to stderr (warning: can be verbose!)")
+	// Logging control for subcommands
+	rootCmd.PersistentFlags().BoolVar(&opts.Logging.LogScanErrors, "log-scan-errors", false, "Log scan errors (timeouts, DNS errors, etc.) to stderr (warning: can be verbose!)")
 
 	rootCmd.PersistentFlags().StringVarP(&opts.Writer.TextFile, "write-text-file", "o", "", "The file to write Text lines to")
-    
 
 	//rootCmd.PersistentFlags().BoolVarP(&opts.DnsOverHttps.SkipSSLCheck, "ssl-insecure", "K", true, "SSL Insecure")
 	rootCmd.PersistentFlags().StringVarP(&tProxy, "proxy", "X", "", "Proxy to pass traffic through: <scheme://ip:port> (e.g., socks4://user:pass@proxy_host:1080")
 	//rootCmd.PersistentFlags().StringVarP(&opts.DnsOverHttps.ProxyUser, "proxy-user", "", "", "Proxy User")
 	//rootCmd.PersistentFlags().StringVarP(&opts.DnsOverHttps.ProxyPassword, "proxy-pass", "", "", "Proxy Password")
 
-    // "Threads" & other
-    rootCmd.PersistentFlags().IntVarP(&opts.Scan.Threads, "threads", "t", 6, "Number of concurrent threads (goroutines) to use")
-    rootCmd.PersistentFlags().IntVarP(&opts.Scan.Timeout, "timeout", "T", 60, "Number of seconds before considering a page timed out")
+	// "Threads" & other
+	rootCmd.PersistentFlags().IntVarP(&opts.Scan.Threads, "threads", "t", 6, "Number of concurrent threads (goroutines) to use")
+	rootCmd.PersistentFlags().IntVarP(&opts.Scan.Timeout, "timeout", "T", 60, "Number of seconds before considering a page timed out")
 
-    // Write options for scan subcommands
-    rootCmd.PersistentFlags().BoolVar(&opts.Writer.Db, "write-db", false, "Write results to a SQLite database")
-    rootCmd.PersistentFlags().StringVar(&opts.Writer.DbURI, "write-db-uri", "sqlite://certcrawler.sqlite3", "The database URI to use. Supports SQLite, Postgres, and MySQL (e.g., postgres://user:pass@host:port/db)")
-    rootCmd.PersistentFlags().BoolVar(&opts.Writer.DbDebug, "write-db-enable-debug", false, "Enable database query debug logging (warning: verbose!)")
-    rootCmd.PersistentFlags().BoolVar(&opts.Writer.Csv, "write-csv", false, "Write results as CSV (has limited columns)")
-    rootCmd.PersistentFlags().StringVar(&opts.Writer.CsvFile, "write-csv-file", "certcrawler.csv", "The file to write CSV rows to")
-    rootCmd.PersistentFlags().BoolVar(&opts.Writer.Jsonl, "write-jsonl", false, "Write results as JSON lines")
-    rootCmd.PersistentFlags().StringVar(&opts.Writer.JsonlFile, "write-jsonl-file", "certcrawler.jsonl", "The file to write JSON lines to")
-    rootCmd.PersistentFlags().BoolVar(&opts.Writer.None, "write-none", false, "Use an empty writer to silence warnings")
-    
+	// Write options for scan subcommands
+	rootCmd.PersistentFlags().BoolVar(&opts.Writer.Db, "write-db", false, "Write results to a SQLite database")
+	rootCmd.PersistentFlags().StringVar(&opts.Writer.DbURI, "write-db-uri", "sqlite://certcrawler.sqlite3", "The database URI to use. Supports SQLite, Postgres, and MySQL (e.g., postgres://user:pass@host:port/db)")
+	rootCmd.PersistentFlags().BoolVar(&opts.Writer.DbDebug, "write-db-enable-debug", false, "Enable database query debug logging (warning: verbose!)")
+	rootCmd.PersistentFlags().BoolVar(&opts.Writer.Csv, "write-csv", false, "Write results as CSV (has limited columns)")
+	rootCmd.PersistentFlags().StringVar(&opts.Writer.CsvFile, "write-csv-file", "certcrawler.csv", "The file to write CSV rows to")
+	rootCmd.PersistentFlags().BoolVar(&opts.Writer.Jsonl, "write-jsonl", false, "Write results as JSON lines")
+	rootCmd.PersistentFlags().StringVar(&opts.Writer.JsonlFile, "write-jsonl-file", "certcrawler.jsonl", "The file to write JSON lines to")
+	rootCmd.PersistentFlags().BoolVar(&opts.Writer.None, "write-none", false, "Use an empty writer to silence warnings")
+
 }

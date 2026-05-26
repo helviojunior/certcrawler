@@ -1,24 +1,23 @@
 package dns
 
 import (
-    "context"
-    "net/url"
-    "net"
-    "errors"
-    "golang.org/x/net/proxy"
-    "github.com/miekg/dns"
-
+	"context"
+	"errors"
+	"github.com/miekg/dns"
+	"golang.org/x/net/proxy"
+	"net"
+	"net/url"
 )
 
 type SocksClient struct {
-    Client *dns.Client
+	Client *dns.Client
 }
 
 // Exchange performs a synchronous query. It sends the message m to the address
 // contained in a and waits for a reply. Basic use pattern with a *dns.Client:
 //
-//  c := new(dns.Client)
-//  in, rtt, err := c.Exchange(message, "127.0.0.1:53")
+//	c := new(dns.Client)
+//	in, rtt, err := c.Exchange(message, "127.0.0.1:53")
 //
 // Exchange does not retry a failed query, nor will it fall back to TCP in
 // case of truncation.
@@ -29,61 +28,61 @@ type SocksClient struct {
 // To specify a local address or a timeout, the caller has to set the `Client.Dialer`
 // attribute appropriately
 func (c *SocksClient) Exchange(m *dns.Msg, proxyUri *url.URL, address string) (*dns.Msg, error) {
-    if proxyUri == nil {
-        return dns.Exchange(m, address); 
-    }
+	if proxyUri == nil {
+		return dns.Exchange(m, address)
+	}
 
-    c.Client = new(dns.Client)
-    co, err := c.Dial(proxyUri, address)
-    if err != nil {
-        return nil, err
-    }
-    defer co.Close()
-    r, _, err := c.Client.ExchangeWithConn(m, co)
-    return r, err
+	c.Client = new(dns.Client)
+	co, err := c.Dial(proxyUri, address)
+	if err != nil {
+		return nil, err
+	}
+	defer co.Close()
+	r, _, err := c.Client.ExchangeWithConn(m, co)
+	return r, err
 }
 
 // Dial connects to the address on the named network.
 func (c *SocksClient) Dial(proxyUri *url.URL, address string) (conn *dns.Conn, err error) {
-    return c.DialContext(context.Background(), proxyUri, address)
+	return c.DialContext(context.Background(), proxyUri, address)
 }
 
 // DialContext connects to the address on the named network, with a context.Context.
 func (c *SocksClient) DialContext(ctx context.Context, proxyUri *url.URL, address string) (conn *dns.Conn, err error) {
-    d, err := FromURL(proxyUri, proxy.Direct)
-    if err != nil {
-        return nil, errors.New("Error connecting to proxy: " +  err.Error())
-    }
+	d, err := FromURL(proxyUri, proxy.Direct)
+	if err != nil {
+		return nil, errors.New("Error connecting to proxy: " + err.Error())
+	}
 
-    conn = new(dns.Conn)
-    conn.Conn, err = d.Dial("tcp", address)
-    if err != nil {
-        return nil, err
-    }
-    conn.UDPSize = c.Client.UDPSize
-    return conn, nil
+	conn = new(dns.Conn)
+	conn.Conn, err = d.Dial("tcp", address)
+	if err != nil {
+		return nil, err
+	}
+	conn.UDPSize = c.Client.UDPSize
+	return conn, nil
 }
 
 func FromURL(u *url.URL, forward proxy.Dialer) (proxy.Dialer, error) {
 
-    var auth *proxy.Auth
-    if u.User != nil {
-        auth = new(proxy.Auth)
-        auth.User = u.User.Username()
-        if p, ok := u.User.Password(); ok {
-            auth.Password = p
-        }
-    }
+	var auth *proxy.Auth
+	if u.User != nil {
+		auth = new(proxy.Auth)
+		auth.User = u.User.Username()
+		if p, ok := u.User.Password(); ok {
+			auth.Password = p
+		}
+	}
 
-    switch u.Scheme {
-    case "socks4", "socks5", "socks5h":
-        addr := u.Hostname()
-        port := u.Port()
-        if port == "" {
-            port = "1080"
-        }
-        return proxy.SOCKS5("tcp", net.JoinHostPort(addr, port), auth, forward)
-    }
+	switch u.Scheme {
+	case "socks4", "socks5", "socks5h":
+		addr := u.Hostname()
+		port := u.Port()
+		if port == "" {
+			port = "1080"
+		}
+		return proxy.SOCKS5("tcp", net.JoinHostPort(addr, port), auth, forward)
+	}
 
-    return nil, errors.New("proxy: unknown scheme: " + u.Scheme)
+	return nil, errors.New("proxy: unknown scheme: " + u.Scheme)
 }

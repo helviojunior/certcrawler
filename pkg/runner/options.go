@@ -1,109 +1,108 @@
 package runner
 
 import (
-    "net/url"
-    "net/netip"
+	"net/netip"
+	"net/url"
 )
 
 // Options are global github.com/helviojunior/certcrawlercertcrawler options
 type Options struct {
-    // Logging is logging options
-    Logging Logging
+	// Logging is logging options
+	Logging Logging
 
-    // Writer is output options
-    Writer Writer
-    // Scan is typically Scan options
-    Scan Scan
-    
-    Proxy *url.URL
+	// Writer is output options
+	Writer Writer
+	// Scan is typically Scan options
+	Scan Scan
 
-    HostName string
+	Proxy *url.URL
 
-    AddrressList []netip.AddrPort
-    HostnameList []string
+	HostName string
 
-    // ServiceMap maps "ip:port" to the detected application protocol
-    // ("http" or "https"). When set (e.g. by the nmap reader), the runner
-    // collects the HTTP banner and page title for those endpoints.
-    ServiceMap map[string]string
+	AddrressList []netip.AddrPort
+	HostnameList []string
 
-    ForceCheck bool
-    StoreTempAsWorkspace bool
+	// ServiceMap maps "ip:port" to the detected application protocol
+	// ("http" or "https"). When set (e.g. by the nmap reader), the runner
+	// collects the HTTP banner and page title for those endpoints.
+	ServiceMap map[string]string
+
+	ForceCheck           bool
+	StoreTempAsWorkspace bool
 }
 
 // Logging is log related options
 type Logging struct {
-    // Debug display debug level logging
-    Debug bool
-    // LogScanErrors log errors related to scanning
-    LogScanErrors bool
-    // Silence all logging
-    Silence bool
+	// Debug display debug level logging
+	Debug bool
+	// LogScanErrors log errors related to scanning
+	LogScanErrors bool
+	// Silence all logging
+	Silence bool
 }
 
 // Writer options
 type Writer struct {
-    UserPath  string
-    Db        bool
-    DbURI     string
-    DbDebug   bool // enables verbose database logs
-    Csv       bool
-    CsvFile   string
-    Jsonl     bool
-    JsonlFile string
-    ELastic   bool
-    ELasticURI string
-    Text      bool
-    TextFile  string
-    Stdout    bool
-    None      bool
-    NoControlDb bool
+	UserPath    string
+	Db          bool
+	DbURI       string
+	DbDebug     bool // enables verbose database logs
+	Csv         bool
+	CsvFile     string
+	Jsonl       bool
+	JsonlFile   string
+	ELastic     bool
+	ELasticURI  string
+	Text        bool
+	TextFile    string
+	Stdout      bool
+	None        bool
+	NoControlDb bool
 }
 
 // DNS Over HTTPs related options
 type DnsOverHttps struct {
 
-    // Don't write HTML response content
-    SkipSSLCheck bool
+	// Don't write HTML response content
+	SkipSSLCheck bool
 
-    // Proxy server to use
-    Proxy string
+	// Proxy server to use
+	Proxy string
 
-    ProxyUser string
-    ProxyPassword string
+	ProxyUser     string
+	ProxyPassword string
 
-    // UserAgent is the user-agent string to set for Chrome
-    UserAgent string
-    // Headers to add to every request
-    Headers []string
-    
+	// UserAgent is the user-agent string to set for Chrome
+	UserAgent string
+	// Headers to add to every request
+	Headers []string
 }
 
 // Scan is scanning related options
 type Scan struct {
-    // Threads (not really) are the number of goroutines to use.
-    // More soecifically, its the go-rod page pool well use.
-    Threads int
-    // Timeout is the maximum time to wait for a page load before timing out.
-    Timeout int
-    // Number of seconds of delay between navigation and screenshotting
-    Delay int
+	// Threads (not really) are the number of goroutines to use.
+	// More soecifically, its the go-rod page pool well use.
+	Threads int
+	// Timeout is the maximum time to wait for a page load before timing out.
+	Timeout int
+	// Number of seconds of delay between navigation and screenshotting
+	Delay int
 }
 
 // NewDefaultOptions returns Options with some default values
 func NewDefaultOptions() *Options {
-    return &Options{
-        Scan: Scan{
-            Threads:          6,
-            Timeout:          60,
-        },
-        Logging: Logging{
-            Debug:         true,
-            LogScanErrors: true,
-        },
-        ForceCheck: false,
-        HostName: "",
-        AddrressList: []netip.AddrPort{},
-        HostnameList: []string{},
-    }
+	return &Options{
+		Scan: Scan{
+			Threads: 6,
+			Timeout: 60,
+		},
+		Logging: Logging{
+			Debug:         true,
+			LogScanErrors: true,
+		},
+		ForceCheck:   false,
+		HostName:     "",
+		AddrressList: []netip.AddrPort{},
+		HostnameList: []string{},
+	}
 }

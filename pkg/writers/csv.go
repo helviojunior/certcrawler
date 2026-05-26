@@ -51,7 +51,7 @@ func (cw *CsvWriter) Finish() error {
 
 // Write a CSV line
 func (cw *CsvWriter) Write(result *models.Host) error {
-	
+
 	file, err := os.OpenFile(cw.finalPath, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0644)
 	if err != nil {
 		return err

@@ -2,8 +2,8 @@ package ascii
 
 import (
 	"fmt"
-	"strings"
 	"github.com/helviojunior/certcrawler/internal/version"
+	"strings"
 )
 
 // Logo returns the certcrawler ascii logo

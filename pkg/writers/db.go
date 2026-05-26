@@ -1,12 +1,12 @@
 package writers
 
 import (
-	"sync"
-	"time"
-	"github.com/helviojunior/certcrawler/pkg/log"
 	"github.com/helviojunior/certcrawler/pkg/database"
+	"github.com/helviojunior/certcrawler/pkg/log"
 	"github.com/helviojunior/certcrawler/pkg/models"
 	"gorm.io/gorm"
+	"sync"
+	"time"
 	//"gorm.io/gorm/clause"
 )
 
@@ -14,10 +14,10 @@ var regThreshold = 200
 
 // DbWriter is a Database writer
 type DbWriter struct {
-	URI           string
-	conn          *gorm.DB
-	mutex         sync.Mutex
-	registers     []models.TestCtrl
+	URI       string
+	conn      *gorm.DB
+	mutex     sync.Mutex
+	registers []models.TestCtrl
 }
 
 // NewDbWriter initialises a database writer
@@ -26,26 +26,26 @@ func NewDbWriter(uri string, debug bool) (*DbWriter, error) {
 	if err != nil {
 		return nil, err
 	}
-	
-	/*
-	if _, ok := c.Statement.Clauses["ON CONFLICT"]; !ok {
-		c = c.Clauses(clause.OnConflict{UpdateAll: true})
-	}*/
 
 	/*
-	if _, ok := c.Statement.Clauses["ON CONFLICT"]; !ok {
-		c = c.Clauses(clause.OnConflict{
-			Columns:   []clause.Column{{Name: "hash"}},
-			//DoNothing: true,
-			UpdateAll: true,
-		})
-	}*/
+		if _, ok := c.Statement.Clauses["ON CONFLICT"]; !ok {
+			c = c.Clauses(clause.OnConflict{UpdateAll: true})
+		}*/
+
+	/*
+		if _, ok := c.Statement.Clauses["ON CONFLICT"]; !ok {
+			c = c.Clauses(clause.OnConflict{
+				Columns:   []clause.Column{{Name: "hash"}},
+				//DoNothing: true,
+				UpdateAll: true,
+			})
+		}*/
 
 	return &DbWriter{
-		URI:           uri,
-		conn:          c,
-		mutex:         sync.Mutex{},
-		registers:     []models.TestCtrl{},
+		URI:       uri,
+		conn:      c,
+		mutex:     sync.Mutex{},
+		registers: []models.TestCtrl{},
 	}, nil
 }
 
@@ -53,7 +53,7 @@ func NewDbWriter(uri string, debug bool) (*DbWriter, error) {
 func (dw *DbWriter) Write(host *models.Host) error {
 	dw.mutex.Lock()
 	defer dw.mutex.Unlock()
-	
+
 	//dw.conn.CreateInBatches(host.Certificates, 50)
 	//dw.conn.CreateInBatches(host.FQDNs, 50)
 
@@ -90,4 +90,3 @@ func (dw *DbWriter) Finish() error {
 
 	return err
 }
-

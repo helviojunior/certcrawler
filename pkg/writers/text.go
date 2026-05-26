@@ -1,8 +1,8 @@
 package writers
 
 import (
-	"time"
 	"os"
+	"time"
 	//"strings"
 	"fmt"
 
@@ -83,35 +83,34 @@ func (t *TextWriter) formatResult(host *models.Host) string {
 		r += fmt.Sprintf("  |--> Title: %s\n", host.Title)
 	}
 
-    for i, cert := range host.Certificates {
-    	ca := ""
-    	if cert.IsRootCA {
-    		ca = "Root CA"
-    	}else if cert.IsCA {
-    		ca = "Intermediate CA"
-    	}else{
-    		ca = "No"
-    	}
-        r += fmt.Sprintf("  |--> Certificate %d:\n", i)
-        r += fmt.Sprintf("  |     |--> Subject:     %s\n", cert.Subject)
-        r += fmt.Sprintf("  |     |--> Issuer:      %s\n", cert.Issuer)
-        r += fmt.Sprintf("  |     |--> NotBefore:   %s\n", cert.NotBefore)
-        r += fmt.Sprintf("  |     |--> NotAfter:    %s\n", cert.NotAfter)
-        r += fmt.Sprintf("  |     |--> CA:          %s\n", ca)
-        r += fmt.Sprintf("  |     |--> Fingerprint: %s\n", cert.Fingerprint)
-        if len(cert.Names) > 2 {
-            r += "  |     |--> Alternate Names:\n"
-            for _, altName := range cert.Names {
-            	r += fmt.Sprintf("  |     |     |--> %s\n", altName.Name)
-            }
-        }
-        r += "  |\n"
-    }
-    r += "  +-- END \n\n"
+	for i, cert := range host.Certificates {
+		ca := ""
+		if cert.IsRootCA {
+			ca = "Root CA"
+		} else if cert.IsCA {
+			ca = "Intermediate CA"
+		} else {
+			ca = "No"
+		}
+		r += fmt.Sprintf("  |--> Certificate %d:\n", i)
+		r += fmt.Sprintf("  |     |--> Subject:     %s\n", cert.Subject)
+		r += fmt.Sprintf("  |     |--> Issuer:      %s\n", cert.Issuer)
+		r += fmt.Sprintf("  |     |--> NotBefore:   %s\n", cert.NotBefore)
+		r += fmt.Sprintf("  |     |--> NotAfter:    %s\n", cert.NotAfter)
+		r += fmt.Sprintf("  |     |--> CA:          %s\n", ca)
+		r += fmt.Sprintf("  |     |--> Fingerprint: %s\n", cert.Fingerprint)
+		if len(cert.Names) > 2 {
+			r += "  |     |--> Alternate Names:\n"
+			for _, altName := range cert.Names {
+				r += fmt.Sprintf("  |     |     |--> %s\n", altName.Name)
+			}
+		}
+		r += "  |\n"
+	}
+	r += "  +-- END \n\n"
 
 	return r
 }
-
 
 func (t *TextWriter) AddCtrl(*models.TestCtrl) error {
 	return nil

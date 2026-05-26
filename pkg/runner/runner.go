@@ -7,37 +7,37 @@ import (
 	//"net/url"
 	//"net/mail"
 	"crypto/tls"
-    "net"
-    "net/http"
-    "net/http/httputil"
-	"os"
 	"fmt"
-	"io"
 	"html"
+	"io"
+	"net"
+	"net/http"
+	"net/http/httputil"
+	"os"
 	"regexp"
+	"strings"
 	"sync"
 	"time"
-	"strings"
 	//"math/rand/v2"
+	"net/netip"
 	"os/signal"
-    "syscall"
-    "net/netip"
-    //"encoding/hex"
-    "encoding/base64"
-    //"strconv"
+	"syscall"
+	//"encoding/hex"
+	"encoding/base64"
+	//"strconv"
 
-    "crypto/x509"
-    "bytes"
+	"bytes"
+	"crypto/x509"
 
-    "golang.org/x/term"
+	"golang.org/x/term"
 
 	//"github.com/helviojunior/certcrawler/internal"
 	"github.com/helviojunior/certcrawler/internal/ascii"
 	"github.com/helviojunior/certcrawler/internal/tools"
+	"github.com/helviojunior/certcrawler/pkg/database"
 	"github.com/helviojunior/certcrawler/pkg/dns"
 	"github.com/helviojunior/certcrawler/pkg/models"
 	"github.com/helviojunior/certcrawler/pkg/writers"
-	"github.com/helviojunior/certcrawler/pkg/database"
 	"gorm.io/gorm"
 )
 
@@ -46,7 +46,7 @@ var titleRegex = regexp.MustCompile(`(?is)<title[^>]*>(.*?)</title>`)
 
 // Runner is a runner that probes web targets using a driver
 type Runner struct {
-	
+
 	//Test id
 	uid string
 
@@ -56,8 +56,8 @@ type Runner struct {
 	//Status
 	status *Status
 
-	conn          *gorm.DB
-	mutex         sync.Mutex
+	conn  *gorm.DB
+	mutex sync.Mutex
 
 	//Context
 	ctx    context.Context
@@ -76,48 +76,47 @@ type Runner struct {
 }
 
 type Status struct {
-	Total int
-	Complete int
-	Skiped int
+	Total           int
+	Complete        int
+	Skiped          int
 	ConnectionError int
-	TLSError int
-	Spin string
-	Running bool
-    IsTerminal bool
-    log *slog.Logger
+	TLSError        int
+	Spin            string
+	Running         bool
+	IsTerminal      bool
+	log             *slog.Logger
 }
 
-func (st *Status) Print() { 
+func (st *Status) Print() {
 
 	if st.IsTerminal {
 		st.Spin = ascii.GetNextSpinner(st.Spin)
 
-		fmt.Fprintf(os.Stderr, "%s\n %s (%s/%s) conn error: %s, tls error: %s               \r\033[A", 
-	    	"                                                                        ",
-	    	ascii.ColoredSpin(st.Spin), 
-	    	tools.FormatInt(st.Complete), 
-	    	tools.FormatInt(st.Total), 
-	    	tools.FormatInt(st.ConnectionError), 
-	    	tools.FormatInt(st.TLSError))
-	}else{
-		st.log.Info("STATUS", 
-            "complete", st.Complete, "total", st.Total, "conn error", st.ConnectionError, 
-            "tls error", st.TLSError)
+		fmt.Fprintf(os.Stderr, "%s\n %s (%s/%s) conn error: %s, tls error: %s               \r\033[A",
+			"                                                                        ",
+			ascii.ColoredSpin(st.Spin),
+			tools.FormatInt(st.Complete),
+			tools.FormatInt(st.Total),
+			tools.FormatInt(st.ConnectionError),
+			tools.FormatInt(st.TLSError))
+	} else {
+		st.log.Info("STATUS",
+			"complete", st.Complete, "total", st.Total, "conn error", st.ConnectionError,
+			"tls error", st.TLSError)
 	}
-} 
-
-func (run *Runner) GetLog() *slog.Logger{ 
-    return run.log
 }
 
-
-func (run *Runner) AddSkiped() { 
-    run.status.Complete += 1
-    run.status.Skiped += 1
+func (run *Runner) GetLog() *slog.Logger {
+	return run.log
 }
 
-func (st *Status) AddResult(result *models.Host) { 
-    st.Complete += 1
+func (run *Runner) AddSkiped() {
+	run.status.Complete += 1
+	run.status.Skiped += 1
+}
+
+func (st *Status) AddResult(result *models.Host) {
+	st.Complete += 1
 }
 
 // New gets a new Runner ready for probing.
@@ -131,26 +130,26 @@ func NewRunner(logger *slog.Logger, opts Options, writers []writers.Writer, dbUr
 	}
 
 	return &Runner{
-		Targets:      make(chan netip.AddrPort),
-		uid: fmt.Sprintf("%d", time.Now().UnixMilli()),
-		ctx:        ctx,
-		conn:       c,
-		mutex:      sync.Mutex{},
-		cancel:     cancel,
-		log:        logger,
-		writers:    writers,
-		options:    opts,
-		Timeout:    2 * time.Second,
-		status:     &Status{
-			Total: 0,
-			Complete: 0,
+		Targets: make(chan netip.AddrPort),
+		uid:     fmt.Sprintf("%d", time.Now().UnixMilli()),
+		ctx:     ctx,
+		conn:    c,
+		mutex:   sync.Mutex{},
+		cancel:  cancel,
+		log:     logger,
+		writers: writers,
+		options: opts,
+		Timeout: 2 * time.Second,
+		status: &Status{
+			Total:           0,
+			Complete:        0,
 			ConnectionError: 0,
-			TLSError: 0,
-			Skiped: 0,
-			Spin: "",
-			Running: true,
-            IsTerminal: term.IsTerminal(int(os.Stdin.Fd())),
-            log: logger,
+			TLSError:        0,
+			Skiped:          0,
+			Spin:            "",
+			Running:         true,
+			IsTerminal:      term.IsTerminal(int(os.Stdin.Fd())),
+			log:             logger,
 		},
 	}, nil
 }
@@ -170,19 +169,19 @@ func (run *Runner) mustCheck(serverName string, endpoint netip.AddrPort) bool {
 	if run.options.ForceCheck || run.conn == nil {
 		return true
 	}
-	
+
 	run.mutex.Lock()
 	defer run.mutex.Unlock()
 
 	response := run.conn.Raw("SELECT count(id) as count from test_control WHERE ip = ? AND port = ? AND fqdn = ?", endpoint.Addr().String(), fmt.Sprintf("%d", endpoint.Port()), serverName)
-    if response != nil {
-        var cnt int
-        _ = response.Row().Scan(&cnt)
-        if cnt > 0 {
-            run.log.Debug("[Host already checked]", "ip", endpoint.Addr().String(), "port", endpoint.Port(), "name", serverName)
-            return false
-        }
-    }
+	if response != nil {
+		var cnt int
+		_ = response.Row().Scan(&cnt)
+		if cnt > 0 {
+			run.log.Debug("[Host already checked]", "ip", endpoint.Addr().String(), "port", endpoint.Port(), "name", serverName)
+			return false
+		}
+	}
 
 	return true
 }
@@ -190,9 +189,9 @@ func (run *Runner) mustCheck(serverName string, endpoint netip.AddrPort) bool {
 func (run *Runner) runCtrlWriters(serverName string, endpoint netip.AddrPort) error {
 	for _, writer := range run.writers {
 		if err := writer.AddCtrl(&models.TestCtrl{
-			Ip       :endpoint.Addr().String(),
-			Port     :uint(endpoint.Port()),
-			FQDN     :serverName,
+			Ip:   endpoint.Addr().String(),
+			Port: uint(endpoint.Port()),
+			FQDN: serverName,
 		}); err != nil {
 			return err
 		}
@@ -203,16 +202,15 @@ func (run *Runner) runCtrlWriters(serverName string, endpoint netip.AddrPort) er
 
 // IsSelfSigned checks if a certificate is self-signed
 func IsSelfSigned(cert *x509.Certificate) bool {
-    // Check if subject and issuer are equal
-    if !bytes.Equal(cert.RawSubject, cert.RawIssuer) {
-        return false
-    }
+	// Check if subject and issuer are equal
+	if !bytes.Equal(cert.RawSubject, cert.RawIssuer) {
+		return false
+	}
 
-    // Try to verify the certificate with its own public key
-    err := cert.CheckSignatureFrom(cert)
-    return err == nil
+	// Try to verify the certificate with its own public key
+	err := cert.CheckSignatureFrom(cert)
+	return err == nil
 }
-
 
 func (run *Runner) Run(total int) Status {
 	wg := sync.WaitGroup{}
@@ -220,31 +218,31 @@ func (run *Runner) Run(total int) Status {
 
 	run.status.Total = total
 
-    c := make(chan os.Signal)
-    signal.Notify(c, os.Interrupt, syscall.SIGTERM)
-    go func() {
-        <-c
-        run.status.Running = false
-    }()
+	c := make(chan os.Signal)
+	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
+	go func() {
+		<-c
+		run.status.Running = false
+	}()
 
 	if !run.options.Logging.Silence {
 		swg.Add(1)
 		go func() {
-	        defer swg.Done()
+			defer swg.Done()
 			for run.status.Running {
 				select {
-					case <-run.ctx.Done():
-						return
-					default:
-			        	run.status.Print()
-			        	if run.status.IsTerminal {
-                            time.Sleep(time.Duration(time.Second / 4))
-                        }else{
-                            time.Sleep(time.Duration(time.Second * 30))
-                        }
-			    }
-	        }
-	    }()
+				case <-run.ctx.Done():
+					return
+				default:
+					run.status.Print()
+					if run.status.IsTerminal {
+						time.Sleep(time.Duration(time.Second / 4))
+					} else {
+						time.Sleep(time.Duration(time.Second * 30))
+					}
+				}
+			}
+		}()
 	}
 
 	// will spawn Scan.Theads number of "workers" as goroutines
@@ -287,27 +285,27 @@ func (run *Runner) Run(total int) Status {
 						if run.mustCheck(h, endpoint) {
 
 							run.runCtrlWriters(h, endpoint)
-	
-						    h1, err := run.getCert(h, endpoint)
-						    
-						    if err != nil {
-						    	l2.Debug("error getting cert", "err", err)
-						    	run.status.TLSError += 1
-						    }else{
-							    if h1 != nil {
-							    	if host == nil {
-							    		host = h1
-							    	}else{
-							    		for _, h2 := range h1.Certificates {
-							    			host.AddCertificate(h2)
-							    		}
-							    	}
-							    }
-		    				}
-		    				if host != nil {
-		    					host.AddFQDN(h)
-		    				}
-		    			}
+
+							h1, err := run.getCert(h, endpoint)
+
+							if err != nil {
+								l2.Debug("error getting cert", "err", err)
+								run.status.TLSError += 1
+							} else {
+								if h1 != nil {
+									if host == nil {
+										host = h1
+									} else {
+										for _, h2 := range h1.Certificates {
+											host.AddCertificate(h2)
+										}
+									}
+								}
+							}
+							if host != nil {
+								host.AddFQDN(h)
+							}
+						}
 
 						run.status.Complete += 1
 					}
@@ -324,9 +322,9 @@ func (run *Runner) Run(total int) Status {
 					// minimal host record.
 					if host == nil && (proto == "http" || proto == "https") {
 						host = &models.Host{
-							Ip           : endpoint.Addr().String(),
-							Port         : uint(endpoint.Port()),
-							Certificates : []*models.Certificate{},
+							Ip:           endpoint.Addr().String(),
+							Port:         uint(endpoint.Port()),
+							Certificates: []*models.Certificate{},
 						}
 					}
 
@@ -359,7 +357,7 @@ func (run *Runner) Run(total int) Status {
 							logger.Error("failed to write result", "err", err)
 						}
 					}
-					
+
 				}
 			}
 
@@ -375,97 +373,97 @@ func (run *Runner) Run(total int) Status {
 
 func (run *Runner) getCert(serverName string, endpoint netip.AddrPort) (*models.Host, error) {
 	result := &models.Host{
-		Ip       :endpoint.Addr().String(),
-		Port     :uint(endpoint.Port()),
+		Ip:   endpoint.Addr().String(),
+		Port: uint(endpoint.Port()),
 		//FQDN     :serverName,
-		Certificates : []*models.Certificate{},
+		Certificates: []*models.Certificate{},
 	}
 
 	cfg := &tls.Config{
-        ServerName:         serverName,
-        InsecureSkipVerify: true,
+		ServerName:         serverName,
+		InsecureSkipVerify: true,
 
-        // Allow SSLv3 (0x0300) up through TLS1.3
-        MinVersion:         tls.VersionSSL30, 
-        MaxVersion:         tls.VersionTLS13,
-    }
-    dialer := &net.Dialer{
-        Timeout: run.Timeout,
-    }
+		// Allow SSLv3 (0x0300) up through TLS1.3
+		MinVersion: tls.VersionSSL30,
+		MaxVersion: tls.VersionTLS13,
+	}
+	dialer := &net.Dialer{
+		Timeout: run.Timeout,
+	}
 
-    // tls.Dial returns *tls.Conn
-    conn, err := tls.DialWithDialer(dialer, "tcp", endpoint.String(), cfg)
-    if err != nil {
-    	return nil, err
-    }
-    defer conn.Close()
+	// tls.Dial returns *tls.Conn
+	conn, err := tls.DialWithDialer(dialer, "tcp", endpoint.String(), cfg)
+	if err != nil {
+		return nil, err
+	}
+	defer conn.Close()
 
-    // Now conn is *tls.Conn, so ConnectionState is available
-    state := conn.ConnectionState()
+	// Now conn is *tls.Conn, so ConnectionState is available
+	state := conn.ConnectionState()
 
-    for _, cert := range state.PeerCertificates {
-    	nc := &models.Certificate{
-    		ProbedAt 			 : time.Now(),
-    		Fingerprint          : tools.GetHash(cert.Signature),
-    		Subject              : cert.Subject.String(),
-    		Issuer               : cert.Issuer.String(),
-    		NotBefore            : cert.NotBefore,
-    		NotAfter             : cert.NotAfter,
-    		IsCA                 : cert.IsCA,
-    		IsRootCA             : cert.IsCA && (cert.Subject.String() == cert.Issuer.String()),
-    		SelfSigned           : IsSelfSigned(cert),
-    		RawData              : base64.StdEncoding.EncodeToString([]byte(cert.Raw)),
-    		Names                : []*models.CertNames{},
-    	}
-    	nc.Names = append(nc.Names, &models.CertNames{
-    		Type 	: "subject",
-    		Name    : cert.Subject.String(),
-    	})
-    	/*
-    	nc.Names = append(nc.Names, &models.CertNames{
-    		Type 	: "subject",
-    		Name    : cert.Issuer.String(),
-    	})*/
+	for _, cert := range state.PeerCertificates {
+		nc := &models.Certificate{
+			ProbedAt:    time.Now(),
+			Fingerprint: tools.GetHash(cert.Signature),
+			Subject:     cert.Subject.String(),
+			Issuer:      cert.Issuer.String(),
+			NotBefore:   cert.NotBefore,
+			NotAfter:    cert.NotAfter,
+			IsCA:        cert.IsCA,
+			IsRootCA:    cert.IsCA && (cert.Subject.String() == cert.Issuer.String()),
+			SelfSigned:  IsSelfSigned(cert),
+			RawData:     base64.StdEncoding.EncodeToString([]byte(cert.Raw)),
+			Names:       []*models.CertNames{},
+		}
+		nc.Names = append(nc.Names, &models.CertNames{
+			Type: "subject",
+			Name: cert.Subject.String(),
+		})
+		/*
+			nc.Names = append(nc.Names, &models.CertNames{
+				Type 	: "subject",
+				Name    : cert.Issuer.String(),
+			})*/
 
-        if len(cert.DNSNames) > 0 {
-        	for _, n := range cert.DNSNames {
-	        	nc.Names = append(nc.Names, &models.CertNames{
-		    		Type 	: "DNS",
-		    		Name    : n,
-		    	})
-		    }
-        }
-        if len(cert.IPAddresses) > 0 {
-        	for _, n := range cert.IPAddresses {
-	        	nc.Names = append(nc.Names, &models.CertNames{
-		    		Type 	: "IPAddress",
-		    		Name    : n.String(),
-		    	})
-		    }
+		if len(cert.DNSNames) > 0 {
+			for _, n := range cert.DNSNames {
+				nc.Names = append(nc.Names, &models.CertNames{
+					Type: "DNS",
+					Name: n,
+				})
+			}
+		}
+		if len(cert.IPAddresses) > 0 {
+			for _, n := range cert.IPAddresses {
+				nc.Names = append(nc.Names, &models.CertNames{
+					Type: "IPAddress",
+					Name: n.String(),
+				})
+			}
 
-        }
-        if len(cert.EmailAddresses) > 0 {
-            for _, n := range cert.EmailAddresses {
-	        	nc.Names = append(nc.Names, &models.CertNames{
-		    		Type 	: "EmailAddress",
-		    		Name    : n,
-		    	})
-		    }
-        }
-        if len(cert.URIs) > 0 {
-            for _, n := range cert.URIs {
-	        	nc.Names = append(nc.Names, &models.CertNames{
-		    		Type 	: "URI",
-		    		Name    : n.String(),
-		    	})
-		    }
-        }
+		}
+		if len(cert.EmailAddresses) > 0 {
+			for _, n := range cert.EmailAddresses {
+				nc.Names = append(nc.Names, &models.CertNames{
+					Type: "EmailAddress",
+					Name: n,
+				})
+			}
+		}
+		if len(cert.URIs) > 0 {
+			for _, n := range cert.URIs {
+				nc.Names = append(nc.Names, &models.CertNames{
+					Type: "URI",
+					Name: n.String(),
+				})
+			}
+		}
 
-    	result.Certificates = append(result.Certificates, nc)
+		result.Certificates = append(result.Certificates, nc)
 
-    }
-    
-    return result, nil
+	}
+
+	return result, nil
 }
 
 // getHTTPInfo performs a single GET request against the endpoint (without
@@ -530,12 +528,12 @@ func (run *Runner) getHTTPInfo(scheme string, serverName string, endpoint netip.
 }
 
 func (run *Runner) isPortOpen(endpoint netip.AddrPort) bool {
-    conn, err := net.DialTimeout("tcp", endpoint.String(), run.Timeout)
-    if err != nil {
-        return false
-    }
-    conn.Close()
-    return true
+	conn, err := net.DialTimeout("tcp", endpoint.String(), run.Timeout)
+	if err != nil {
+		return false
+	}
+	conn.Close()
+	return true
 }
 
 func (run *Runner) Close() {
@@ -543,4 +541,3 @@ func (run *Runner) Close() {
 		writer.Finish()
 	}
 }
-
