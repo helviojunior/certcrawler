@@ -108,36 +108,65 @@ func convertFromDbTo(from string, writers []writers.Writer) error {
 		return err
 	}
 
-	var results = []*models.Host{}
-	var ids = []int{}
 	var rCount = 0
 
+	// Build the optional filter as a sub-query so it carries no bound
+	// parameters (the LIKE terms are sanitized and inlined by prepareSQL).
+	// Using an "id IN (...)" list instead would re-introduce the very
+	// "too many SQL variables" failure we are batching to avoid.
+	filterClause := ""
 	if len(filterList) > 0 {
 		sqlHosts := prepareSQL([]string{"h.ptr", "cn.name"})
-
-		if err := conn.Raw("SELECT distinct h.id from hosts_certs as hc inner join cert_names as cn on cn.certificate_id = hc.certificate_id inner join hosts as h on h.id = hc.host_id WHERE cn.name != '' " + sqlHosts).Find(&ids).Error; err != nil {
-			return err
-		}
-		if err := conn.Model(&models.Host{}).Preload(clause.Associations).Where("id in ?", ids).Preload("Certificates").Preload("Certificates.Names").Find(&results).Error; err != nil {
-			return err
-		}
-	} else {
-		if err := conn.Model(&models.Host{}).Preload(clause.Associations).Preload("Certificates").Preload("Certificates.Names").Find(&results).Error; err != nil {
-			return err
-		}
+		filterClause = "id IN (SELECT distinct h.id from hosts_certs as hc inner join cert_names as cn on cn.certificate_id = hc.certificate_id inner join hosts as h on h.id = hc.host_id WHERE cn.name != '' " + sqlHosts + ")"
 	}
 
-	for _, result := range results {
-		if len(result.Certificates) > 0 {
-			rCount++
-			result.ResetID()
-			for _, w := range writers {
-				if err := w.Write(result); err != nil {
-					return err
+	// Page through the hosts with a primary-key cursor. Loading every row at
+	// once makes GORM build a single "host_id IN (...)" clause for the
+	// preloaded associations, which overflows SQLite's variable limit on
+	// large databases. The cursor keeps each preload bounded by batchSize.
+	const batchSize = 100
+	var lastID uint = 0
+	for {
+		var batch = []*models.Host{}
+
+		query := conn.Model(&models.Host{}).
+			Preload(clause.Associations).
+			Preload("Certificates").
+			Preload("Certificates.Names").
+			Where("id > ?", lastID).
+			Order("id").
+			Limit(batchSize)
+
+		if filterClause != "" {
+			query = query.Where(filterClause)
+		}
+
+		if err := query.Find(&batch).Error; err != nil {
+			return err
+		}
+
+		if len(batch) == 0 {
+			break
+		}
+
+		// Capture the cursor before ResetID() zeroes the primary keys below.
+		lastID = batch[len(batch)-1].ID
+
+		for _, result := range batch {
+			if len(result.Certificates) > 0 {
+				rCount++
+				result.ResetID()
+				for _, w := range writers {
+					if err := w.Write(result); err != nil {
+						return err
+					}
 				}
 			}
 		}
 
+		if len(batch) < batchSize {
+			break
+		}
 	}
 
 	log.Info("converted from a database", "rows", rCount)
