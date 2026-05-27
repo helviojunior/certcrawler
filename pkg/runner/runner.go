@@ -511,6 +511,9 @@ func (run *Runner) getHTTPInfo(scheme string, serverName string, endpoint netip.
 	if serverName != "" {
 		req.Host = serverName
 	}
+	if run.options.UserAgent != "" {
+		req.Header.Set("User-Agent", run.options.UserAgent)
+	}
 
 	resp, err := client.Do(req)
 	if err != nil {

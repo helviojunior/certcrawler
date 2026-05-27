@@ -19,6 +19,10 @@ type Options struct {
 
 	HostName string
 
+	// UserAgent is the User-Agent header sent on HTTP/HTTPS requests when
+	// collecting the banner and page title.
+	UserAgent string
+
 	AddrressList []netip.AddrPort
 	HostnameList []string
 
