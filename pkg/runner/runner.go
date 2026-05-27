@@ -259,10 +259,9 @@ func (run *Runner) Run(total int) Status {
 			defer wg.Done()
 			tools.RandSleep()
 			// Always probe the endpoint once without SNI (empty server name)
-			// to capture the server's baseline response, in addition to one
-			// query per configured hostname.
-			queries := append([]string{""}, run.options.HostnameList...)
-			hnCount := len(queries)
+			// to capture the server's baseline response and once using the host
+			// IP, in addition to one query per configured hostname.
+			hnCount := len(run.options.HostnameList) + 2
 			for run.status.Running {
 				select {
 				case <-run.ctx.Done():
@@ -287,8 +286,9 @@ func (run *Runner) Run(total int) Status {
 					}
 
 					// The host record key is (ip, port, sni), so each query
-					// (the no-SNI baseline plus one per hostname) against this
-					// endpoint produces its own record.
+					// (the no-SNI baseline, the host IP, plus one per hostname)
+					// against this endpoint produces its own record.
+					queries := append([]string{"", endpoint.Addr().String()}, run.options.HostnameList...)
 					for _, h := range queries {
 						l2 := run.log.With("Host", endpoint.String(), "host", h)
 
