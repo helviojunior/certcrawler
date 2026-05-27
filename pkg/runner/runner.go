@@ -341,9 +341,22 @@ func (run *Runner) Run(total int) Status {
 								// this SNI. Any failure here must not prevent the
 								// remaining information from being stored.
 								if proto == "http" || proto == "https" {
-									if banner, title, herr := run.getHTTPInfo(proto, h, endpoint); herr != nil {
+									if banner, title, status, herr := run.getHTTPInfo(proto, h, endpoint); herr != nil {
 										l2.Debug("error getting http banner/title", "err", herr)
 									} else {
+										// For the baseline (no-SNI) query a 400
+										// is often the server rejecting the empty
+										// Host header. Retry once using the host
+										// IP and keep that result if it no longer
+										// returns 400.
+										if h == "" && status == 400 {
+											ip := endpoint.Addr().String()
+											if banner2, title2, status2, herr2 := run.getHTTPInfo(proto, ip, endpoint); herr2 != nil {
+												l2.Debug("error getting http banner/title with ip", "err", herr2)
+											} else if status2 != 400 {
+												banner, title = banner2, title2
+											}
+										}
 										host.Banner = banner
 										host.Title = title
 									}
@@ -475,10 +488,11 @@ func (run *Runner) getCert(serverName string, endpoint netip.AddrPort) (*models.
 }
 
 // getHTTPInfo performs a single GET request against the endpoint (without
-// following redirects) and returns the full HTTP response header as the banner
-// and the page <title> content, when present. It is best-effort: callers
-// should treat an error as "no banner/title available" and continue.
-func (run *Runner) getHTTPInfo(scheme string, serverName string, endpoint netip.AddrPort) (string, string, error) {
+// following redirects) and returns the full HTTP response header as the banner,
+// the page <title> content (when present) and the HTTP status code. It is
+// best-effort: callers should treat an error as "no banner/title available" and
+// continue.
+func (run *Runner) getHTTPInfo(scheme string, serverName string, endpoint netip.AddrPort) (string, string, int, error) {
 	timeout := run.Timeout
 	if run.options.Scan.Timeout > 0 {
 		timeout = time.Duration(run.options.Scan.Timeout) * time.Second
@@ -506,7 +520,7 @@ func (run *Runner) getHTTPInfo(scheme string, serverName string, endpoint netip.
 	url := fmt.Sprintf("%s://%s/", scheme, endpoint.String())
 	req, err := http.NewRequestWithContext(run.ctx, http.MethodGet, url, nil)
 	if err != nil {
-		return "", "", err
+		return "", "", 0, err
 	}
 	if serverName != "" {
 		req.Host = serverName
@@ -517,7 +531,7 @@ func (run *Runner) getHTTPInfo(scheme string, serverName string, endpoint netip.
 
 	resp, err := client.Do(req)
 	if err != nil {
-		return "", "", err
+		return "", "", 0, err
 	}
 	defer resp.Body.Close()
 
@@ -535,7 +549,7 @@ func (run *Runner) getHTTPInfo(scheme string, serverName string, endpoint netip.
 		}
 	}
 
-	return banner, title, nil
+	return banner, title, resp.StatusCode, nil
 }
 
 func (run *Runner) isPortOpen(endpoint netip.AddrPort) bool {
